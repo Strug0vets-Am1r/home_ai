@@ -1,0 +1,80 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Опрос{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>Расскажите о себе</h3>
+                <p class="text-muted">Это поможет нам создать подходящие задачи</p>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="has_dishwasher" name="has_dishwasher">
+                            <label class="form-check-label" for="has_dishwasher">
+                                У меня есть посудомойка
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="has_robot_vacuum" name="has_robot_vacuum">
+                            <label class="form-check-label" for="has_robot_vacuum">
+                                У меня есть робот-пылесос
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="room_count" class="form-label">Количество комнат</label>
+                        <input type="number" class="form-control" id="room_count" name="room_count" min="1" max="10">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="has_plants" name="has_plants">
+                            <label class="form-check-label" for="has_plants">
+                                У меня есть комнатные растения
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="has_pets" name="has_pets">
+                            <label class="form-check-label" for="has_pets">
+                                У меня есть домашние животные
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Как часто вы предпочитаете убираться?</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="cleaning_frequency" value="daily">
+                            <label class="form-check-label">Ежедневно</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="cleaning_frequency" value="weekly">
+                            <label class="form-check-label">Раз в неделю</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="cleaning_frequency" value="monthly">
+                            <label class="form-check-label">Раз в месяц</label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">Завершить настройку</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

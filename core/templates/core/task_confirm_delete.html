@@ -1,0 +1,25 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Удалить задачу{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3>Удалить задачу</h3>
+            </div>
+            <div class="card-body">
+                <p class="alert alert-warning">
+                    Вы уверены, что хотите удалить задачу <strong>"{{ task.title }}"</strong>?
+                </p>
+                <form method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Да, удалить</button>
+                    <a href="{% url 'home' %}" class="btn btn-secondary">Отмена</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

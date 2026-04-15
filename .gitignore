@@ -1,8 +1,14 @@
-venv/
+# Служебные файлы macOS
 .DS_Store
+
+# Кэш Python
 __pycache__/
 *.pyc
+
+# Виртуальные окружения
+venv/
+ml_service/venv_ml/
+
+# Переменные окружения
 .env
-ml_service/.env
-ml_service/.env
 ml_service/.env

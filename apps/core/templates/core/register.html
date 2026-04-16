@@ -3,38 +3,47 @@
 {% block title %}Регистрация{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h3>Регистрация</h3>
+<div class="hero">
+    <div>
+        <div class="eyebrow">Создание аккаунта</div>
+        <h1 class="hero__title">Регистрация</h1>
+    </div>
+    <p class="hero__meta">
+        Создай аккаунт, чтобы начать планировать домашние задачи.
+    </p>
+</div>
+
+<div class="panel panel--glass" style="max-width: 560px;">
+    <div class="panel__body">
+        <form method="post" class="form-grid">
+            {% csrf_token %}
+
+            <div class="field">
+                <label class="field__label" for="username">Имя пользователя</label>
+                <input type="text" class="input" id="username" name="username" required>
             </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Имя пользователя</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email">
-                    </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Пароль</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="password2" class="form-label">Подтвердите пароль</label>
-                        <input type="password" class="form-control" id="password2" name="password2" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Зарегистрироваться</button>
-                </form>
-                <p class="mt-3 text-center">
-                    Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a>
-                </p>
+
+            <div class="field">
+                <label class="field__label" for="email">Email</label>
+                <input type="email" class="input" id="email" name="email">
             </div>
-        </div>
+
+            <div class="field">
+                <label class="field__label" for="password">Пароль</label>
+                <input type="password" class="input" id="password" name="password" required>
+            </div>
+
+            <div class="field">
+                <label class="field__label" for="password2">Подтвердите пароль</label>
+                <input type="password" class="input" id="password2" name="password2" required>
+            </div>
+
+            <button type="submit" class="button button--primary">Зарегистрироваться</button>
+        </form>
+
+        <p class="muted" style="margin:18px 0 0;">
+            Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a>
+        </p>
     </div>
 </div>
 {% endblock %}

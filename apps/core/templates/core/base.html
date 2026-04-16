@@ -1,45 +1,785 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home AI - {% block title %}Помощник по дому{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FullCalendar CSS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
-    <!-- FullCalendar JS -->
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ru.js"></script>
+    <style>
+        :root {
+            --font-body: 'Inter', system-ui, sans-serif;
+            --bg: #f4f6fb;
+            --bg-2: #eef2f8;
+            --surface: rgba(255, 255, 255, 0.88);
+            --surface-2: rgba(255, 255, 255, 0.72);
+            --surface-3: rgba(255, 255, 255, 0.56);
+            --text: #162033;
+            --muted: #63708a;
+            --border: rgba(22, 32, 51, 0.10);
+            --border-strong: rgba(22, 32, 51, 0.16);
+            --shadow-sm: 0 1px 2px rgba(12, 20, 34, 0.06), 0 8px 24px rgba(12, 20, 34, 0.04);
+            --shadow-md: 0 10px 30px rgba(12, 20, 34, 0.10), 0 2px 8px rgba(12, 20, 34, 0.05);
+            --shadow-lg: 0 18px 50px rgba(12, 20, 34, 0.14), 0 6px 18px rgba(12, 20, 34, 0.08);
+            --primary: #2b6cff;
+            --primary-2: #1f55d1;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --radius-sm: 12px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+            --radius-xl: 28px;
+            --blur: 16px;
+            --container: 1180px;
+            --transition: 180ms cubic-bezier(.2,.8,.2,1);
+            color-scheme: light;
+        }
+
+        html[data-theme="dark"] {
+            --bg: #090d14;
+            --bg-2: #111827;
+            --surface: rgba(16, 24, 39, 0.82);
+            --surface-2: rgba(17, 24, 39, 0.68);
+            --surface-3: rgba(255, 255, 255, 0.05);
+            --text: #e9eef8;
+            --muted: #9aa7bc;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-strong: rgba(255, 255, 255, 0.14);
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 24px rgba(0, 0, 0, 0.18);
+            --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.18);
+            --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.36), 0 6px 18px rgba(0, 0, 0, 0.22);
+            --primary: #7ea6ff;
+            --primary-2: #5c88ff;
+            --success: #34d399;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            color-scheme: dark;
+        }
+
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: var(--font-body);
+            min-height: 100vh;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 14%, transparent) 0, transparent 34%),
+                radial-gradient(circle at top right, color-mix(in srgb, var(--success) 10%, transparent) 0, transparent 28%),
+                linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+            line-height: 1.6;
+        }
+
+        a { color: var(--primary); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .skip-link {
+            position: absolute;
+            top: -48px;
+            left: 16px;
+            background: var(--text);
+            color: var(--bg);
+            padding: 10px 14px;
+            border-radius: 999px;
+            z-index: 1000;
+        }
+        .skip-link:focus { top: 16px; }
+
+        .app-shell {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            border-bottom: 1px solid var(--border);
+            background: color-mix(in srgb, var(--bg) 72%, transparent);
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+        }
+
+        .topbar__inner,
+        .page {
+            width: min(var(--container), calc(100% - 32px));
+            margin: 0 auto;
+        }
+
+        .topbar__inner {
+            min-height: 76px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            white-space: nowrap;
+        }
+
+        .brand__mark {
+            width: 40px;
+            height: 40px;
+            border-radius: 14px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 45%, white));
+            color: white;
+            box-shadow: var(--shadow-sm);
+            flex: 0 0 auto;
+        }
+
+        .brand__mark svg { width: 22px; height: 22px; }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .nav__link,
+        .button,
+        .select,
+        .alert__close {
+            transition: transform var(--transition), background var(--transition), border-color var(--transition), color var(--transition), box-shadow var(--transition), opacity var(--transition);
+        }
+
+        .nav__link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 42px;
+            padding: 0 14px;
+            border-radius: 999px;
+            color: var(--text);
+            border: 1px solid transparent;
+        }
+
+        .nav__link:hover {
+            background: var(--surface);
+            border-color: var(--border);
+            text-decoration: none;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .nav__link.is-active {
+            background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+            border-color: color-mix(in srgb, var(--primary) 24%, var(--border));
+            color: var(--text);
+        }
+
+        .nav__group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .theme-switcher {
+            min-width: 140px;
+        }
+
+        .select {
+            width: 100%;
+            min-height: 42px;
+            appearance: none;
+            padding: 0 40px 0 14px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background:
+                linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface-2) 96%, transparent));
+            color: var(--text);
+            box-shadow: var(--shadow-sm);
+            outline: none;
+        }
+
+        .select:focus {
+            border-color: color-mix(in srgb, var(--primary) 46%, var(--border));
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 20%, transparent), var(--shadow-sm);
+        }
+
+        .theme-switcher__wrap {
+            position: relative;
+        }
+
+        .theme-switcher__wrap::after {
+            content: "▾";
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-52%);
+            color: var(--muted);
+            pointer-events: none;
+            font-size: 12px;
+        }
+
+        .page {
+            padding: 32px 0 56px;
+            flex: 1;
+        }
+
+        .hero {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 20px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 0.875rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        h1, h2, h3, h4 {
+            margin: 0;
+            line-height: 1.15;
+            letter-spacing: -0.03em;
+        }
+
+        h1 { font-size: clamp(2rem, 1.3rem + 2vw, 3.5rem); }
+        h2 { font-size: clamp(1.4rem, 1.1rem + 1vw, 2rem); }
+        h3 { font-size: clamp(1.15rem, 1rem + 0.6vw, 1.4rem); }
+
+        .hero__title {
+            max-width: 14ch;
+        }
+
+        .hero__meta {
+            color: var(--muted);
+            max-width: 42ch;
+        }
+
+        .grid {
+            display: grid;
+            gap: 18px;
+        }
+
+        .grid--2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .grid--3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .panel {
+            border: 1px solid var(--border);
+            background: var(--surface);
+            box-shadow: var(--shadow-sm);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+        }
+
+        .panel--glass {
+            background: linear-gradient(180deg, var(--surface), var(--surface-2));
+        }
+
+        .panel__head {
+            padding: 20px 20px 0;
+        }
+
+        .panel__body {
+            padding: 20px;
+        }
+
+        .panel__footer {
+            padding: 0 20px 20px;
+        }
+
+        .panel + .panel { margin-top: 18px; }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin: 28px 0 14px;
+        }
+
+        .muted { color: var(--muted); }
+
+        .button {
+            border: 1px solid transparent;
+            border-radius: 999px;
+            min-height: 44px;
+            padding: 0 16px;
+            font: inherit;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            user-select: none;
+        }
+
+        .button:hover { transform: translateY(-1px); text-decoration: none; }
+        .button:active { transform: translateY(0); opacity: 0.94; }
+
+        .button--primary {
+            background: linear-gradient(180deg, var(--primary), var(--primary-2));
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        .button--secondary {
+            background: var(--surface-2);
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        .button--danger {
+            background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+            color: var(--danger);
+            border-color: color-mix(in srgb, var(--danger) 24%, var(--border));
+        }
+
+        .button--success {
+            background: color-mix(in srgb, var(--success) 14%, var(--surface));
+            color: var(--success);
+            border-color: color-mix(in srgb, var(--success) 24%, var(--border));
+        }
+
+        .button--ghost {
+            background: transparent;
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        .button--small {
+            min-height: 38px;
+            padding: 0 14px;
+            font-size: 0.92rem;
+        }
+
+        .stack {
+            display: grid;
+            gap: 14px;
+        }
+
+        .task-card {
+            border: 1px solid var(--border);
+            background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface-2) 96%, transparent));
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        .task-card__summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 18px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .task-card__summary::-webkit-details-marker { display: none; }
+
+        .task-card__title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .task-card__title strong {
+            display: block;
+            font-size: 1.02rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .task-card__time {
+            color: var(--muted);
+            font-size: 0.92rem;
+            white-space: nowrap;
+        }
+
+        .task-card__body {
+            border-top: 1px solid var(--border);
+            padding: 18px;
+            display: grid;
+            gap: 16px;
+        }
+
+        .task-card__text {
+            color: var(--muted);
+            margin: 0;
+        }
+
+        .subtasks {
+            display: grid;
+            gap: 10px;
+        }
+
+        .subtask {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: var(--surface-3);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            font-size: 0.82rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .badge--success {
+            background: color-mix(in srgb, var(--success) 16%, var(--surface));
+            color: var(--success);
+            border-color: color-mix(in srgb, var(--success) 20%, var(--border));
+        }
+
+        .badge--muted {
+            background: var(--surface-3);
+            color: var(--muted);
+            border-color: var(--border);
+        }
+
+        .alert-area {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .alert {
+            position: relative;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            padding: 14px 44px 14px 16px;
+            box-shadow: var(--shadow-sm);
+            background: var(--surface);
+        }
+
+        .alert--success { border-color: color-mix(in srgb, var(--success) 32%, var(--border)); }
+        .alert--danger { border-color: color-mix(in srgb, var(--danger) 34%, var(--border)); }
+        .alert--warning { border-color: color-mix(in srgb, var(--warning) 34%, var(--border)); }
+        .alert--info { border-color: color-mix(in srgb, var(--primary) 26%, var(--border)); }
+
+        .alert__close {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 30px;
+            height: 30px;
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        .alert__close:hover {
+            background: color-mix(in srgb, var(--text) 7%, transparent);
+            color: var(--text);
+        }
+
+        .form-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .field {
+            display: grid;
+            gap: 8px;
+        }
+
+        .field__label {
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .input,
+        .textarea {
+            width: 100%;
+            appearance: none;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: color-mix(in srgb, var(--surface) 92%, white);
+            color: var(--text);
+            padding: 14px 16px;
+            outline: none;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+
+        .textarea {
+            min-height: 130px;
+            resize: vertical;
+        }
+
+        .input:focus,
+        .textarea:focus {
+            border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent);
+        }
+
+        .checklist {
+            display: grid;
+            gap: 12px;
+        }
+
+        .check {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            background: var(--surface-3);
+            border-radius: 16px;
+        }
+
+        .check input {
+            margin-top: 4px;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+        }
+
+        .fc {
+            --fc-page-bg-color: transparent;
+            --fc-neutral-bg-color: var(--surface-2);
+            --fc-neutral-text-color: var(--text);
+            --fc-border-color: var(--border);
+            --fc-button-text-color: var(--text);
+            --fc-button-bg-color: var(--surface-2);
+            --fc-button-border-color: var(--border);
+            --fc-button-hover-bg-color: var(--surface);
+            --fc-button-hover-border-color: var(--border-strong);
+            --fc-button-active-bg-color: color-mix(in srgb, var(--primary) 14%, var(--surface));
+            --fc-button-active-border-color: color-mix(in srgb, var(--primary) 24%, var(--border));
+            --fc-today-bg-color: color-mix(in srgb, var(--primary) 12%, transparent);
+            --fc-event-bg-color: var(--primary);
+            --fc-event-border-color: var(--primary);
+            --fc-event-text-color: white;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: clamp(1.15rem, 1rem + 0.7vw, 1.8rem);
+            color: var(--text);
+        }
+
+        .fc .fc-button {
+            border-radius: 999px !important;
+            border: 1px solid var(--border) !important;
+            box-shadow: none !important;
+            padding: 0.55rem 0.85rem !important;
+            text-transform: none !important;
+        }
+
+        .fc .fc-scrollgrid,
+        .fc .fc-scrollgrid-section > td,
+        .fc .fc-theme-standard td,
+        .fc .fc-theme-standard th {
+            border-color: var(--border) !important;
+        }
+
+        .fc .fc-daygrid-day-number,
+        .fc .fc-col-header-cell-cushion {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .fc .fc-daygrid-day.fc-day-today {
+            background: color-mix(in srgb, var(--primary) 10%, transparent) !important;
+        }
+
+        .fc .fc-event {
+            border-radius: 10px !important;
+            padding: 2px 4px !important;
+            font-weight: 600;
+        }
+
+        .footer-space { height: 20px; }
+
+        @media (max-width: 920px) {
+            .topbar__inner {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 14px 0;
+            }
+
+            .nav,
+            .nav__group {
+                justify-content: flex-start;
+            }
+
+            .theme-switcher {
+                min-width: 100%;
+            }
+
+            .hero {
+                align-items: start;
+            }
+
+            .grid--2,
+            .grid--3 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .topbar__inner,
+            .page {
+                width: min(var(--container), calc(100% - 20px));
+            }
+
+            .page {
+                padding: 22px 0 40px;
+            }
+
+            .panel__body,
+            .panel__head,
+            .panel__footer {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+
+            .task-card__summary {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .task-card__time {
+                white-space: normal;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+    </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="{% url 'home' %}">🏠 Home AI</a>
-            {% if user.is_authenticated %}
-                <div class="navbar-nav ms-auto">
-                    <a href="{% url 'calendar' %}" class="nav-link text-white">📅 Календарь</a>
-                    <a href="{% url 'task_create_with_ai' %}" class="nav-link text-white">🤖 С AI</a>
-                    <span class="navbar-text me-3">Привет, {{ user.username }}!</span>
-                    <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm">Выйти</a>
-                </div>
-            {% endif %}
-        </div>
-    </nav>
+    <a class="skip-link" href="#content">Перейти к содержимому</a>
 
-    <div class="container mt-4">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="topbar__inner">
+                <a class="brand" href="{% url 'home' %}">
+                    <span class="brand__mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4.5v-6a1.5 1.5 0 0 0-3 0v6H5a1 1 0 0 1-1-1v-8.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span>Home AI</span>
+                </a>
 
-        {% block content %}
-        {% endblock %}
+                <div class="nav">
+                    {% if user.is_authenticated %}
+                        <div class="nav__group">
+                            <a href="{% url 'home' %}" class="nav__link {% if request.resolver_match.url_name == 'home' %}is-active{% endif %}">Мои задачи</a>
+                            <a href="{% url 'calendar' %}" class="nav__link {% if request.resolver_match.url_name == 'calendar' %}is-active{% endif %}">Календарь</a>
+                            <a href="{% url 'task_create_with_ai' %}" class="nav__link {% if request.resolver_match.url_name == 'task_create_with_ai' %}is-active{% endif %}">С AI</a>
+                            <a href="{% url 'logout' %}" class="nav__link">Выйти</a>
+                        </div>
+                    {% endif %}
+
+                    <div class="theme-switcher">
+                        <div class="theme-switcher__wrap">
+                            <select id="themeSelect" class="select" aria-label="Выбор темы">
+                                <option value="light">Светлая</option>
+                                <option value="dark">Тёмная</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main id="content" class="page">
+            <div id="global-alerts" class="alert-area">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert--{{ message.tags }} auto-dismiss-alert" role="alert">
+                            {{ message }}
+                            <button type="button" class="alert__close" aria-label="Закрыть уведомление">×</button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            {% block content %}{% endblock %}
+        </main>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        (function () {
+            const root = document.documentElement;
+            const select = document.getElementById('themeSelect');
+            const storedTheme = localStorage.getItem('home_ai_theme') || 'light';
+            const allowedThemes = ['light', 'dark'];
+
+            function applyTheme(theme) {
+                const nextTheme = allowedThemes.includes(theme) ? theme : 'light';
+                root.setAttribute('data-theme', nextTheme);
+                select.value = nextTheme;
+                localStorage.setItem('home_ai_theme', nextTheme);
+            }
+
+            applyTheme(storedTheme);
+
+            select.addEventListener('change', function () {
+                applyTheme(this.value);
+            });
+
+            document.querySelectorAll('.auto-dismiss-alert').forEach(function (alertEl) {
+                const closeBtn = alertEl.querySelector('.alert__close');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function () {
+                        alertEl.remove();
+                    });
+                }
+                setTimeout(function () {
+                    if (alertEl.isConnected) alertEl.remove();
+                }, 4000);
+            });
+        })();
+    </script>
 </body>
 </html>

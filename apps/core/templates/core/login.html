@@ -3,30 +3,37 @@
 {% block title %}Вход{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h3>Вход</h3>
+<div class="hero">
+    <div>
+        <div class="eyebrow">Добро пожаловать</div>
+        <h1 class="hero__title">Вход</h1>
+    </div>
+    <p class="hero__meta">
+        Войди в аккаунт, чтобы видеть свои задачи и календарь.
+    </p>
+</div>
+
+<div class="panel panel--glass" style="max-width: 560px;">
+    <div class="panel__body">
+        <form method="post" class="form-grid">
+            {% csrf_token %}
+
+            <div class="field">
+                <label class="field__label" for="username">Имя пользователя</label>
+                <input type="text" class="input" id="username" name="username" required>
             </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Имя пользователя</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Пароль</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Войти</button>
-                </form>
-                <p class="mt-3 text-center">
-                    Нет аккаунта? <a href="{% url 'register' %}">Зарегистрироваться</a>
-                </p>
+
+            <div class="field">
+                <label class="field__label" for="password">Пароль</label>
+                <input type="password" class="input" id="password" name="password" required>
             </div>
-        </div>
+
+            <button type="submit" class="button button--primary">Войти</button>
+        </form>
+
+        <p class="muted" style="margin:18px 0 0;">
+            Нет аккаунта? <a href="{% url 'register' %}">Зарегистрироваться</a>
+        </p>
     </div>
 </div>
 {% endblock %}

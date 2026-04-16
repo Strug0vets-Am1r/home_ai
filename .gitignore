@@ -1,14 +1,39 @@
-# Служебные файлы macOS
+# macOS
 .DS_Store
 
-# Кэш Python
+# Python cache
 __pycache__/
-*.pyc
+*.py[cod]
 
 # Виртуальные окружения
 venv/
+.venv/
+env/
+ENV/
 ml_service/venv_ml/
 
 # Переменные окружения
 .env
+.env.*
 ml_service/.env
+
+# Django / SQLite
+db.sqlite3
+*.sqlite3
+*.sqlite3-journal
+
+# Логи
+*.log
+
+# Кэш инструментов
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Coverage
+.coverage
+.coverage.*
+
+# IDE
+.idea/
+.vscode/

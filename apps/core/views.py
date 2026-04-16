@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
 from django.db.models import Prefetch
-from .models import User, Task
+from .models import User, Task, TaskHistory
 from .forms import TaskForm
 from .tasks import generate_subtasks
 import datetime
@@ -22,16 +22,13 @@ def register(request):
         password = request.POST.get('password')
         password2 = request.POST.get('password2')
 
-
         if password != password2:
             messages.error(request, 'Пароли не совпадают')
             return render(request, 'core/register.html')
 
-
         if User.objects.filter(username=username).exists():
             messages.error(request, 'Пользователь с таким именем уже существует')
             return render(request, 'core/register.html')
-
 
         user = User.objects.create_user(
             username=username,
@@ -39,10 +36,8 @@ def register(request):
             password=password
         )
 
-
         login(request, user)
         return redirect('survey')
-
 
     return render(request, 'core/register.html')
 
@@ -55,14 +50,11 @@ def user_login(request):
         password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
 
-
         if user is not None:
             login(request, user)
             return redirect('home')
 
-
         messages.error(request, 'Неверное имя пользователя или пароль')
-
 
     return render(request, 'core/login.html')
 
@@ -80,10 +72,8 @@ def survey(request):
     if not request.user.is_authenticated:
         return redirect('register')
 
-
     if request.user.is_survey_completed:
         return redirect('home')
-
 
     if request.method == 'POST':
         user = request.user
@@ -92,23 +82,18 @@ def survey(request):
         user.has_plants = request.POST.get('has_plants') == 'on'
         user.has_pets = request.POST.get('has_pets') == 'on'
 
-
         room_count = request.POST.get('room_count')
         if room_count:
             user.room_count = int(room_count)
-
 
         user.cleaning_frequency = request.POST.get('cleaning_frequency')
         user.is_survey_completed = True
         user.save()
 
-
         generate_initial_tasks(user)
-
 
         messages.success(request, 'Спасибо! Ваши задачи созданы.')
         return redirect('home')
-
 
     return render(request, 'core/survey.html')
 
@@ -117,7 +102,6 @@ def survey(request):
 def generate_initial_tasks(user):
     """Генерация стартовых задач на основе опроса"""
     today = timezone.now()
-
 
     tasks = [
         {
@@ -130,13 +114,11 @@ def generate_initial_tasks(user):
         },
     ]
 
-
     if user.has_dishwasher:
         tasks.append({
             'title': 'Загрузить посудомойку и запустить',
             'due_date': today + datetime.timedelta(days=1)
         })
-
 
     if user.has_robot_vacuum:
         tasks.append({
@@ -144,13 +126,11 @@ def generate_initial_tasks(user):
             'due_date': today + datetime.timedelta(days=1)
         })
 
-
     if user.has_plants:
         tasks.append({
             'title': 'Полить растения',
             'due_date': today + datetime.timedelta(days=3)
         })
-
 
     if user.has_pets:
         tasks.append({
@@ -162,7 +142,6 @@ def generate_initial_tasks(user):
             'due_date': today + datetime.timedelta(days=1)
         })
 
-
     if user.cleaning_frequency == 'daily':
         tasks.append({
             'title': 'Влажная уборка',
@@ -173,7 +152,6 @@ def generate_initial_tasks(user):
             'title': 'Влажная уборка',
             'due_date': today + datetime.timedelta(days=7)
         })
-
 
     for task_data in tasks:
         Task.objects.create(
@@ -187,7 +165,7 @@ def generate_initial_tasks(user):
 @login_required
 def home(request):
     """Главная страница со списком задач"""
-    tasks = Task.objects.filter(
+    active_tasks = Task.objects.filter(
         user=request.user,
         is_completed=False,
         parent_task__isnull=True
@@ -195,8 +173,18 @@ def home(request):
         Prefetch('subtasks', queryset=Task.objects.filter(user=request.user).order_by('due_date'))
     ).order_by('due_date')
 
+    completed_tasks = Task.objects.filter(
+        user=request.user,
+        is_completed=True,
+        parent_task__isnull=True
+    ).prefetch_related(
+        Prefetch('subtasks', queryset=Task.objects.filter(user=request.user).order_by('due_date'))
+    ).order_by('-updated_at', '-due_date')
 
-    return render(request, 'core/home.html', {'tasks': tasks})
+    return render(request, 'core/home.html', {
+        'tasks': active_tasks,
+        'completed_tasks': completed_tasks,
+    })
 
 
 
@@ -216,12 +204,33 @@ def complete_task(request, task_id):
         messages.error(request, 'Задача не найдена.')
         return redirect('home')
 
-
     task.is_completed = True
     task.save()
 
+    TaskHistory.objects.create(
+        user=request.user,
+        task_title=task.title
+    )
 
     messages.success(request, f'Задача "{task.title}" выполнена!')
+    return redirect('home')
+
+
+
+@login_required
+def clear_completed_tasks(request):
+    """Удалить все выполненные задачи пользователя"""
+    if request.method == 'POST':
+        deleted_count, _ = Task.objects.filter(
+            user=request.user,
+            is_completed=True
+        ).delete()
+
+        if deleted_count > 0:
+            messages.success(request, 'Выполненные задачи очищены.')
+        else:
+            messages.info(request, 'Нет выполненных задач для очистки.')
+
     return redirect('home')
 
 
@@ -240,7 +249,6 @@ def task_create(request):
     else:
         form = TaskForm()
 
-
     return render(request, 'core/task_form.html', {'form': form, 'title': 'Создать задачу'})
 
 
@@ -250,7 +258,6 @@ def task_edit(request, task_id):
     """Редактирование задачи"""
     task = Task.objects.get(id=task_id, user=request.user)
 
-
     if request.method == 'POST':
         form = TaskForm(request.POST, instance=task)
         if form.is_valid():
@@ -259,7 +266,6 @@ def task_edit(request, task_id):
             return redirect('home')
     else:
         form = TaskForm(instance=task)
-
 
     return render(request, 'core/task_form.html', {'form': form, 'title': 'Редактировать задачу', 'task': task})
 
@@ -271,12 +277,10 @@ def task_delete(request, task_id):
     task = Task.objects.get(id=task_id, user=request.user)
     title = task.title
 
-
     if request.method == 'POST':
         task.delete()
         messages.success(request, f'Задача "{title}" удалена!')
         return redirect('home')
-
 
     return render(request, 'core/task_confirm_delete.html', {'task': task})
 
@@ -286,7 +290,6 @@ def task_delete(request, task_id):
 def api_tasks(request):
     """API для получения задач в формате FullCalendar"""
     tasks = Task.objects.filter(user=request.user, parent_task__isnull=True)
-
 
     events = []
     for task in tasks:
@@ -300,13 +303,10 @@ def api_tasks(request):
             'textColor': '#ffffff',
         }
 
-
         if task.description:
             event['description'] = task.description
 
-
         events.append(event)
-
 
     return JsonResponse(events, safe=False)
 
@@ -317,9 +317,7 @@ def generate_subtasks_view(request, task_id):
     """Запуск генерации подзадач для задачи"""
     task = Task.objects.get(id=task_id, user=request.user)
 
-
     result = generate_subtasks.delay(task.title, task.id)
-
 
     return JsonResponse({
         'success': True,
@@ -337,10 +335,8 @@ def task_create_with_ai(request):
         description = request.POST.get('description')
         due_date = request.POST.get('due_date')
 
-
         from django.utils.dateparse import parse_datetime
         due_date = parse_datetime(due_date)
-
 
         task = Task.objects.create(
             user=request.user,
@@ -349,7 +345,6 @@ def task_create_with_ai(request):
             due_date=due_date
         )
 
-
         try:
             response = requests.post(
                 'http://localhost:8002/generate-subtasks/',
@@ -357,11 +352,9 @@ def task_create_with_ai(request):
                 timeout=30
             )
 
-
             if response.status_code == 200:
                 data = response.json()
                 subtasks = data.get('subtasks', [])
-
 
                 for subtask_title in subtasks:
                     Task.objects.create(
@@ -372,20 +365,16 @@ def task_create_with_ai(request):
                         parent_task=task
                     )
 
-
                 messages.success(request, f'Задача "{title}" создана вместе с {len(subtasks)} подзадачами!')
             else:
                 messages.warning(request, f'Задача "{title}" создана, но подзадачи не сгенерировались.')
-
 
         except requests.exceptions.ConnectionError:
             messages.warning(request, f'Задача "{title}" создана, но ML service недоступен.')
         except Exception as e:
             messages.warning(request, f'Задача "{title}" создана, но произошла ошибка генерации подзадач: {str(e)}')
 
-
         return redirect('home')
-
 
     return render(request, 'core/task_create_with_ai.html')
 
@@ -397,7 +386,6 @@ def api_generate_subtasks(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-
     try:
         data = json.loads(request.body)
         task_title = data.get('task_title')
@@ -405,10 +393,8 @@ def api_generate_subtasks(request):
     except Exception:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-
     if not task_title:
         return JsonResponse({'error': 'task_title is required'}, status=400)
-
 
     try:
         response = requests.post(
@@ -417,20 +403,16 @@ def api_generate_subtasks(request):
             timeout=30
         )
 
-
         if response.status_code != 200:
             return JsonResponse({'status': 'error', 'message': f'ML service error: {response.status_code}'})
 
-
         ml_data = response.json()
         subtasks = ml_data.get('subtasks', [])
-
 
         if task_id:
             try:
                 parent_task = Task.objects.get(id=task_id, user=request.user)
                 created_count = 0
-
 
                 for subtask_title in subtasks:
                     if not Task.objects.filter(
@@ -447,7 +429,6 @@ def api_generate_subtasks(request):
                         )
                         created_count += 1
 
-
                 return JsonResponse({
                     'status': 'success',
                     'subtasks': subtasks,
@@ -457,13 +438,11 @@ def api_generate_subtasks(request):
             except Task.DoesNotExist:
                 return JsonResponse({'status': 'error', 'message': 'Родительская задача не найдена.'})
 
-
         return JsonResponse({
             'status': 'success',
             'subtasks': subtasks,
             'message': 'Генерация подзадач завершена!'
         })
-
 
     except requests.exceptions.ConnectionError:
         return JsonResponse({'status': 'error', 'message': 'ML service not available. Make sure it is running on port 8002.'})

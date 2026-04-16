@@ -3,183 +3,224 @@
 {% block title %}Главная{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Мои задачи</h1>
+<div class="hero">
     <div>
-        <a href="{% url 'task_create' %}" class="btn btn-primary">+ Новая задача</a>
+        <div class="eyebrow">Домашний центр управления</div>
+        <h1 class="hero__title">Мои задачи</h1>
+    </div>
+    <p class="hero__meta">
+        Управляй рутиной, создавай новые задачи и генерируй подзадачи без лишнего шума.
+    </p>
+</div>
+
+<div class="panel panel--glass">
+    <div class="panel__head">
+        <div class="section-title" style="margin:0;">
+            <h2>Активные задачи</h2>
+            <a href="{% url 'task_create' %}" class="button button--primary">+ Новая задача</a>
+        </div>
+    </div>
+    <div class="panel__body">
+        <div id="subtasks-alert-container"></div>
+
+        {% if tasks %}
+            <div class="stack">
+                {% for task in tasks %}
+                    <details class="task-card">
+                        <summary class="task-card__summary">
+                            <div class="task-card__title">
+                                <strong>{{ task.title }}</strong>
+                                {% if task.subtasks.all %}
+                                    <span class="badge badge--muted">{{ task.subtasks.all|length }} подзадач</span>
+                                {% endif %}
+                            </div>
+                            <div class="task-card__time">{{ task.due_date|date:"d.m.Y H:i" }}</div>
+                        </summary>
+
+                        <div class="task-card__body">
+                            {% if task.description %}
+                                <p class="task-card__text">{{ task.description }}</p>
+                            {% endif %}
+
+                            {% if task.subtasks.all %}
+                                <div class="subtasks">
+                                    {% for subtask in task.subtasks.all %}
+                                        <div class="subtask">
+                                            <span>{% if subtask.is_completed %}<s>{{ subtask.title }}</s>{% else %}{{ subtask.title }}{% endif %}</span>
+                                            {% if subtask.is_completed %}
+                                                <span class="badge badge--success">Готово</span>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                                <a href="{% url 'complete_task' task.id %}" class="button button--success button--small">✓ Выполнить</a>
+                                <a href="{% url 'task_edit' task.id %}" class="button button--secondary button--small">✏️ Изменить</a>
+                                <a href="{% url 'task_delete' task.id %}" class="button button--danger button--small">🗑️ Удалить</a>
+                                <button
+                                    type="button"
+                                    class="button button--ghost button--small js-generate-subtasks"
+                                    data-task-id="{{ task.id }}"
+                                    data-task-title="{{ task.title|escape }}"
+                                >
+                                    🤖 Подзадачи
+                                </button>
+                            </div>
+                        </div>
+                    </details>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="panel panel--glass" style="margin-top: 18px;">
+                <div class="panel__body">
+                    <p class="muted" style="margin:0 0 12px;">У вас нет активных задач.</p>
+                    <a href="{% url 'task_create' %}" class="button button--primary">Создать задачу</a>
+                </div>
+            </div>
+        {% endif %}
     </div>
 </div>
 
-<div id="subtasks-alert-container"></div>
+<div class="section-title">
+    <h2>Выполненные задачи</h2>
+    {% if completed_tasks %}
+        <form method="post" action="{% url 'clear_completed_tasks' %}">
+            {% csrf_token %}
+            <button type="submit" class="button button--danger button--small">Очистить выполненные</button>
+        </form>
+    {% endif %}
+</div>
 
-{% if tasks %}
-    <div class="accordion" id="tasksAccordion">
-        {% for task in tasks %}
-            <div class="accordion-item mb-3">
-                <h2 class="accordion-header" id="heading-{{ task.id }}">
-                    <button
-                        class="accordion-button collapsed {% if task.is_completed %}bg-light{% endif %}"
-                        type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#collapse-{{ task.id }}"
-                        aria-expanded="false"
-                        aria-controls="collapse-{{ task.id }}"
-                    >
-                        <div class="w-100 d-flex justify-content-between align-items-center me-3">
-                            <span>
-                                {% if task.is_completed %}
-                                    <s>{{ task.title }}</s>
-                                {% else %}
-                                    {{ task.title }}
-                                {% endif %}
-                            </span>
-                            <small class="text-muted ms-3">
-                                {{ task.due_date|date:"d.m.Y H:i" }}
-                            </small>
-                        </div>
-                    </button>
-                </h2>
-
-                <div
-                    id="collapse-{{ task.id }}"
-                    class="accordion-collapse collapse"
-                    aria-labelledby="heading-{{ task.id }}"
-                    data-bs-parent="#tasksAccordion"
-                >
-                    <div class="accordion-body">
-                        {% if task.description %}
-                            <p class="text-muted mb-3">{{ task.description }}</p>
-                        {% endif %}
-
-                        {% if task.subtasks.all %}
-                            <div class="mb-3">
-                                <h6>Подзадачи:</h6>
-                                <ul class="list-group list-group-flush">
-                                    {% for subtask in task.subtasks.all %}
-                                        <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
-                                            <span>
-                                                {% if subtask.is_completed %}
-                                                    <s>{{ subtask.title }}</s>
-                                                {% else %}
-                                                    {{ subtask.title }}
-                                                {% endif %}
-                                            </span>
-                                            {% if subtask.is_completed %}
-                                                <span class="badge bg-success">Готово</span>
-                                            {% endif %}
-                                        </li>
-                                    {% endfor %}
-                                </ul>
+<div class="panel panel--glass">
+    <div class="panel__body">
+        {% if completed_tasks %}
+            <div class="stack">
+                {% for task in completed_tasks %}
+                    <details class="task-card">
+                        <summary class="task-card__summary">
+                            <div class="task-card__title">
+                                <strong><s>{{ task.title }}</s></strong>
+                                <span class="badge badge--success">Выполнено</span>
                             </div>
-                        {% endif %}
+                            <div class="task-card__time">{{ task.due_date|date:"d.m.Y H:i" }}</div>
+                        </summary>
 
-                        <div class="d-flex gap-2 flex-wrap">
-                            {% if not task.is_completed %}
-                                <a href="{% url 'complete_task' task.id %}" class="btn btn-success btn-sm">
-                                    ✓ Выполнить
-                                </a>
+                        <div class="task-card__body">
+                            {% if task.description %}
+                                <p class="task-card__text">{{ task.description }}</p>
                             {% endif %}
 
-                            <a href="{% url 'task_edit' task.id %}" class="btn btn-warning btn-sm">
-                                ✏️ Изменить
-                            </a>
+                            {% if task.subtasks.all %}
+                                <div class="subtasks">
+                                    {% for subtask in task.subtasks.all %}
+                                        <div class="subtask">
+                                            <span>{% if subtask.is_completed %}<s>{{ subtask.title }}</s>{% else %}{{ subtask.title }}{% endif %}</span>
+                                            {% if subtask.is_completed %}
+                                                <span class="badge badge--success">Готово</span>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
 
-                            <a href="{% url 'task_delete' task.id %}" class="btn btn-danger btn-sm">
-                                🗑️ Удалить
-                            </a>
-
-                            <button
-                                type="button"
-                                class="btn btn-info btn-sm js-generate-subtasks"
-                                data-task-id="{{ task.id }}"
-                                data-task-title="{{ task.title|escape }}"
-                            >
-                                🤖 Подзадачи
-                            </button>
+                            <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                                <a href="{% url 'task_delete' task.id %}" class="button button--danger button--small">🗑️ Удалить</a>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </details>
+                {% endfor %}
             </div>
-        {% endfor %}
+        {% else %}
+            <p class="muted" style="margin:0;">Выполненных задач пока нет.</p>
+        {% endif %}
     </div>
-{% else %}
-    <div class="alert alert-info">
-        У вас пока нет задач. <a href="{% url 'task_create' %}">Создать первую задачу</a>
-    </div>
-{% endif %}
+</div>
 
 <script>
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
             }
         }
+        return cookieValue;
     }
-    return cookieValue;
-}
 
-function showSubtasksAlert(message, type) {
-    const container = document.getElementById('subtasks-alert-container');
-    container.innerHTML = `
-        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+    function showSubtasksAlert(message, type) {
+        const container = document.getElementById('subtasks-alert-container');
+        const alert = document.createElement('div');
+        alert.className = `alert alert--${type} auto-dismiss-alert`;
+        alert.setAttribute('role', 'alert');
+        alert.innerHTML = `
             ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-}
+            <button type="button" class="alert__close" aria-label="Закрыть уведомление">×</button>
+        `;
 
-function generateSubtasks(button) {
-    const taskId = button.dataset.taskId;
-    const taskTitle = button.dataset.taskTitle;
+        alert.querySelector('.alert__close').addEventListener('click', function () {
+            alert.remove();
+        });
 
-    const oldText = button.innerHTML;
-    button.disabled = true;
-    button.innerHTML = '⏳ Генерация...';
+        container.appendChild(alert);
 
-    fetch("{% url 'api_generate_subtasks' %}", {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: JSON.stringify({
-            task_id: taskId,
-            task_title: taskTitle
+        setTimeout(function () {
+            if (alert.isConnected) alert.remove();
+        }, 4000);
+    }
+
+    function generateSubtasks(button) {
+        const taskId = button.dataset.taskId;
+        const taskTitle = button.dataset.taskTitle;
+        const oldText = button.innerHTML;
+
+        button.disabled = true;
+        button.innerHTML = '⏳ Генерация...';
+
+        fetch("{% url 'api_generate_subtasks' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                task_id: taskId,
+                task_title: taskTitle
+            })
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            showSubtasksAlert('Генерация подзадач завершена!', 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            showSubtasksAlert(data.message || 'Ошибка при генерации подзадач.', 'danger');
-        }
-    })
-    .catch(() => {
-        showSubtasksAlert('Ошибка при генерации подзадач.', 'danger');
-    })
-    .finally(() => {
-        button.disabled = false;
-        button.innerHTML = oldText;
-    });
-}
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showSubtasksAlert('Генерация подзадач завершена!', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showSubtasksAlert(data.message || 'Ошибка при генерации подзадач.', 'danger');
+            }
+        })
+        .catch(() => {
+            showSubtasksAlert('Ошибка при генерации подзадач.', 'danger');
+        })
+        .finally(() => {
+            button.disabled = false;
+            button.innerHTML = oldText;
+        });
+    }
 
-document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.js-generate-subtasks').forEach(function (button) {
-        button.addEventListener('click', function (event) {
-            event.stopPropagation();
-            generateSubtasks(button);
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.js-generate-subtasks').forEach(function (button) {
+            button.addEventListener('click', function (event) {
+                event.stopPropagation();
+                generateSubtasks(button);
+            });
         });
     });
-});
 </script>
 {% endblock %}

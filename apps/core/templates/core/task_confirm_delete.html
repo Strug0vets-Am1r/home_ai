@@ -1,24 +1,51 @@
 {% extends 'core/base.html' %}
 
-{% block title %}Удалить задачу{% endblock %}
+{% block title %}Удаление задачи{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h3>Удалить задачу</h3>
+<div class="hero">
+    <div>
+        <div class="eyebrow">Опасное действие</div>
+        <h1 class="hero__title">Удаление задачи</h1>
+    </div>
+    <p class="hero__meta">
+        Это действие удалит задачу из вашего списка. Перед подтверждением лучше ещё раз проверить, ту ли задачу вы удаляете.
+    </p>
+</div>
+
+<div class="panel panel--glass" style="max-width: 760px; border-color: color-mix(in srgb, var(--danger) 28%, var(--border));">
+    <div class="panel__body">
+        <div class="stack">
+            <div class="badge badge--muted" style="width: fit-content;">Подтверждение удаления</div>
+
+            <div class="panel" style="background: color-mix(in srgb, var(--danger) 8%, var(--surface)); border-color: color-mix(in srgb, var(--danger) 22%, var(--border)); box-shadow: none;">
+                <div class="panel__body">
+                    <h2 style="margin-bottom: 10px;">Вы действительно хотите удалить задачу?</h2>
+                    <p class="muted" style="margin: 0 0 14px;">
+                        После удаления задача <strong style="color: var(--text);">«{{ task.title }}»</strong> будет удалена без возможности восстановления.
+                    </p>
+
+                    {% if task.description %}
+                        <div class="subtask" style="align-items: flex-start;">
+                            <div>
+                                <strong style="display:block; margin-bottom: 6px;">Описание</strong>
+                                <span class="muted">{{ task.description }}</span>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <div class="subtask" style="margin-top: 12px;">
+                        <span>Срок выполнения</span>
+                        <span class="badge badge--muted">{{ task.due_date|date:"d.m.Y H:i" }}</span>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <p class="alert alert-warning">
-                    Вы уверены, что хотите удалить задачу <strong>"{{ task.title }}"</strong>?
-                </p>
-                <form method="post">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">Да, удалить</button>
-                    <a href="{% url 'home' %}" class="btn btn-secondary">Отмена</a>
-                </form>
-            </div>
+
+            <form method="post" style="display:flex; gap:12px; flex-wrap:wrap;">
+                {% csrf_token %}
+                <button type="submit" class="button button--danger">Да, удалить</button>
+                <a href="{% url 'home' %}" class="button button--secondary">Отмена</a>
+            </form>
         </div>
     </div>
 </div>

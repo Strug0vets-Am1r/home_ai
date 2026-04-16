@@ -12,32 +12,23 @@
             <div class="card-body">
                 <form method="post" id="task-form">
                     {% csrf_token %}
-                    
+
                     <div class="mb-3">
                         <label for="title" class="form-label">Название задачи</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="title" name="title" required>
-                            <button type="button" id="generate-btn" class="btn btn-secondary">🤖 Сгенерировать</button>
-                        </div>
-                        <small class="text-muted">Напишите название сложной задачи, AI поможет разбить на подзадачи</small>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                        <small class="text-muted">Напишите название сложной задачи, AI автоматически создаст все подзадачи</small>
                     </div>
-                    
-                    <div class="mb-3" id="subtasks-container" style="display: none;">
-                        <label class="form-label">Подзадачи (сгенерированы AI)</label>
-                        <div id="subtasks-list" class="mb-2 border p-2 rounded"></div>
-                        <button type="button" id="add-subtasks-btn" class="btn btn-success btn-sm">Добавить выбранные в описание</button>
-                    </div>
-                    
+
                     <div class="mb-3">
                         <label for="description" class="form-label">Описание</label>
                         <textarea class="form-control" id="description" name="description" rows="3"></textarea>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="due_date" class="form-label">Дата и время выполнения</label>
                         <input type="datetime-local" class="form-control" id="due_date" name="due_date" required>
                     </div>
-                    
+
                     <button type="submit" class="btn btn-primary">Сохранить задачу</button>
                     <a href="{% url 'home' %}" class="btn btn-secondary">Отмена</a>
                 </form>
@@ -45,73 +36,4 @@
         </div>
     </div>
 </div>
-
-<script>
-    document.getElementById('generate-btn').addEventListener('click', function() {
-        const title = document.getElementById('title').value;
-        if (!title) {
-            alert('Сначала введите название задачи');
-            return;
-        }
-        
-        this.disabled = true;
-        this.textContent = 'Генерация...';
-        
-        fetch('/api/generate-subtasks/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: JSON.stringify({ task_title: title })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success' && data.subtasks && data.subtasks.length > 0) {
-                const container = document.getElementById('subtasks-container');
-                const list = document.getElementById('subtasks-list');
-                list.innerHTML = '<strong>Выберите подзадачи для добавления:</strong>';
-                data.subtasks.forEach((subtask, index) => {
-                    list.innerHTML += `
-                        <div class="form-check mt-2">
-                            <input class="form-check-input" type="checkbox" value="${subtask.replace(/[<>]/g, '')}" id="subtask-${index}">
-                            <label class="form-check-label" for="subtask-${index}">
-                                ${subtask.replace(/[<>]/g, '')}
-                            </label>
-                        </div>
-                    `;
-                });
-                container.style.display = 'block';
-            } else {
-                alert('Не удалось сгенерировать подзадачи: ' + (data.message || 'неизвестная ошибка'));
-            }
-        })
-        .catch(error => {
-            alert('Ошибка: ' + error);
-        })
-        .finally(() => {
-            this.disabled = false;
-            this.textContent = '🤖 Сгенерировать';
-        });
-    });
-    
-    document.getElementById('add-subtasks-btn').addEventListener('click', function() {
-        const checked = document.querySelectorAll('#subtasks-list input:checked');
-        if (checked.length === 0) {
-            alert('Выберите подзадачи для добавления');
-            return;
-        }
-        
-        let description = document.getElementById('description').value;
-        if (description) description += '\n\n';
-        description += '📋 Подзадачи:\n';
-        checked.forEach((item, index) => {
-            description += '• ' + item.value + '\n';
-        });
-        document.getElementById('description').value = description;
-        
-        document.getElementById('subtasks-container').style.display = 'none';
-        alert('Подзадачи добавлены в описание');
-    });
-</script>
 {% endblock %}

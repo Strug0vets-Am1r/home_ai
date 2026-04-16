@@ -12,6 +12,7 @@ urlpatterns = [
     path('survey/', views.survey, name='survey'),
     path('', views.home, name='home'),
     path('complete/<int:task_id>/', views.complete_task, name='complete_task'),
+    path('completed/clear/', views.clear_completed_tasks, name='clear_completed_tasks'),
     path('task/create/', views.task_create, name='task_create'),
     path('task/edit/<int:task_id>/', views.task_edit, name='task_edit'),
     path('task/delete/<int:task_id>/', views.task_delete, name='task_delete'),

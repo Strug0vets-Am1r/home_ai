@@ -9,13 +9,13 @@
         <h1 class="hero__title">{{ title }}</h1>
     </div>
     <p class="hero__meta">
-        Заполни данные задачи и сохрани её в своём списке.
+        Заполни основные данные задачи и при необходимости сгенерируй подзадачи через AI.
     </p>
 </div>
 
 <div class="panel panel--glass">
     <div class="panel__body">
-        <form method="post" class="form-grid">
+        <form method="post" class="form-grid" id="task-form">
             {% csrf_token %}
 
             <div class="field">
@@ -29,9 +29,62 @@
             <div class="field">
                 <label class="field__label" for="{{ form.description.id_for_label }}">Описание</label>
                 {{ form.description }}
+                <div class="muted">Описание поможет AI сгенерировать более точные подзадачи.</div>
                 {% if form.description.errors %}
                     <div class="muted">{{ form.description.errors }}</div>
                 {% endif %}
+            </div>
+
+            <div class="field">
+                <div class="section-title" style="margin: 0;">
+                    <div>
+                        <label class="field__label" style="display:block; margin-bottom: 4px;">Подзадачи</label>
+                        <div class="muted">
+                            Можно добавить вручную, удалить лишние или сгенерировать через AI.
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button type="button" class="button button--ghost button--small" id="generate-subtasks-btn">
+                            🤖 Сгенерировать через AI
+                        </button>
+                        <button type="button" class="button button--secondary button--small" id="add-subtask-btn">
+                            + Добавить
+                        </button>
+                    </div>
+                </div>
+
+                <div id="subtasks-alert-container"></div>
+
+                <div id="subtasks-list" class="stack">
+                    {% if task and task.subtasks.all %}
+                        {% for subtask in task.subtasks.all %}
+                            <div class="subtask-editor">
+                                <input
+                                    type="text"
+                                    name="subtasks"
+                                    class="input"
+                                    value="{{ subtask.title }}"
+                                    placeholder="Введите подзадачу"
+                                >
+                                <button type="button" class="button button--danger button--small js-remove-subtask">
+                                    Удалить
+                                </button>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="subtask-editor">
+                            <input
+                                type="text"
+                                name="subtasks"
+                                class="input"
+                                placeholder="Например: отварить пасту"
+                            >
+                            <button type="button" class="button button--danger button--small js-remove-subtask">
+                                Удалить
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="field">
@@ -50,14 +103,210 @@
     </div>
 </div>
 
+<style>
+    .subtask-editor {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: color-mix(in srgb, var(--surface) 88%, var(--surface-2));
+    }
+
+    @media (max-width: 640px) {
+        .subtask-editor {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
 <script>
-    document.querySelectorAll('input, textarea, select').forEach(function(el) {
-        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
-            el.classList.add('input');
+    (function () {
+        document.querySelectorAll('input, textarea, select').forEach(function (el) {
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                el.classList.add('input');
+            }
+            if (el.tagName === 'TEXTAREA') {
+                el.classList.add('textarea');
+            }
+        });
+
+        const subtasksList = document.getElementById('subtasks-list');
+        const addSubtaskBtn = document.getElementById('add-subtask-btn');
+        const generateBtn = document.getElementById('generate-subtasks-btn');
+        const titleInput = document.getElementById('{{ form.title.id_for_label }}');
+        const descriptionInput = document.getElementById('{{ form.description.id_for_label }}');
+        const alertsContainer = document.getElementById('subtasks-alert-container');
+        const MAX_SUBTASKS = 10;
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
-        if (el.tagName === 'TEXTAREA') {
-            el.classList.add('textarea');
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
         }
-    });
+
+        function showAlert(message, type) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert--${type} auto-dismiss-alert`;
+            alert.setAttribute('role', 'alert');
+            alert.innerHTML = `
+                ${escapeHtml(message)}
+                <button type="button" class="alert__close" aria-label="Закрыть уведомление">×</button>
+            `;
+
+            const closeBtn = alert.querySelector('.alert__close');
+            closeBtn.addEventListener('click', function () {
+                alert.remove();
+            });
+
+            alertsContainer.innerHTML = '';
+            alertsContainer.appendChild(alert);
+
+            setTimeout(function () {
+                if (alert.isConnected) {
+                    alert.remove();
+                }
+            }, 4000);
+        }
+
+        function createSubtaskItem(value = '') {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'subtask-editor';
+            wrapper.innerHTML = `
+                <input
+                    type="text"
+                    name="subtasks"
+                    class="input"
+                    placeholder="Введите подзадачу"
+                    value="${escapeHtml(value)}"
+                >
+                <button type="button" class="button button--danger button--small js-remove-subtask">
+                    Удалить
+                </button>
+            `;
+            return wrapper;
+        }
+
+        function bindRemoveButtons() {
+            subtasksList.querySelectorAll('.js-remove-subtask').forEach(function (button) {
+                button.onclick = function () {
+                    const items = subtasksList.querySelectorAll('.subtask-editor');
+                    if (items.length === 1) {
+                        const input = items[0].querySelector('input[name="subtasks"]');
+                        if (input) input.value = '';
+                        return;
+                    }
+                    button.closest('.subtask-editor').remove();
+                };
+            });
+        }
+
+        function normalizeSubtasks(items) {
+            const seen = new Set();
+            const result = [];
+
+            items.forEach(function (item) {
+                const value = String(item || '').trim();
+                if (!value) return;
+
+                const normalized = value.toLowerCase().replace(/[.,!?:;]+$/g, '');
+                if (seen.has(normalized)) return;
+
+                seen.add(normalized);
+                result.push(value);
+            });
+
+            return result.slice(0, MAX_SUBTASKS);
+        }
+
+        addSubtaskBtn.addEventListener('click', function () {
+            const count = subtasksList.querySelectorAll('.subtask-editor').length;
+            if (count >= MAX_SUBTASKS) {
+                showAlert(`Можно добавить не более ${MAX_SUBTASKS} подзадач.`, 'warning');
+                return;
+            }
+
+            subtasksList.appendChild(createSubtaskItem());
+            bindRemoveButtons();
+        });
+
+        generateBtn.addEventListener('click', function () {
+            const taskTitle = (titleInput?.value || '').trim();
+            const taskDescription = (descriptionInput?.value || '').trim();
+
+            if (!taskTitle) {
+                showAlert('Сначала введи название задачи.', 'warning');
+                return;
+            }
+
+            generateBtn.disabled = true;
+            const oldText = generateBtn.innerHTML;
+            generateBtn.innerHTML = '⏳ Генерация...';
+
+            fetch('{% url "api_generate_subtasks" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    task_title: taskTitle,
+                    task_description: taskDescription
+                })
+            })
+            .then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data };
+                });
+            })
+            .then(function (result) {
+                if (!result.ok || result.data.status !== 'success') {
+                    throw new Error(result.data.message || 'Не удалось сгенерировать подзадачи.');
+                }
+
+                const subtasks = normalizeSubtasks(result.data.subtasks || []);
+                if (!subtasks.length) {
+                    throw new Error('AI не вернул подзадачи.');
+                }
+
+                subtasksList.innerHTML = '';
+                subtasks.forEach(function (text) {
+                    subtasksList.appendChild(createSubtaskItem(text));
+                });
+
+                bindRemoveButtons();
+                showAlert('Подзадачи успешно сгенерированы.', 'success');
+            })
+            .catch(function (error) {
+                showAlert(error.message || 'Произошла ошибка при генерации подзадач.', 'danger');
+            })
+            .finally(function () {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = oldText;
+            });
+        });
+
+        bindRemoveButtons();
+    })();
 </script>
 {% endblock %}

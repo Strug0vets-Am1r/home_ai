@@ -13,7 +13,7 @@
     </p>
 </div>
 
-<div class="panel panel--glass">
+<div class="panel">
     <div class="panel__head">
         <div class="section-title" style="margin:0;">
             <h2>Активные задачи</h2>
@@ -73,7 +73,7 @@
                 {% endfor %}
             </div>
         {% else %}
-            <div class="panel panel--glass" style="margin-top: 18px;">
+            <div class="panel" style="margin-top: 18px;">
                 <div class="panel__body">
                     <p class="muted" style="margin:0 0 12px;">У вас нет активных задач.</p>
                     <a href="{% url 'task_create' %}" class="button button--primary">Создать задачу</a>
@@ -93,7 +93,7 @@
     {% endif %}
 </div>
 
-<div class="panel panel--glass">
+<div class="panel">
     <div class="panel__body">
         {% if completed_tasks %}
             <div class="stack">

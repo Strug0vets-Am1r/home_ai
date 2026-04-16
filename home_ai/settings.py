@@ -8,16 +8,16 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
-
-
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env', override=True)
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-#4)s+%vmx=co%p!$mey4156v2c8&p$ezr#*gq6e-8iep0!4x45')
+SECRET_KEY = os.getenv(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-#4)s+%vmx=co%p!$mey4156v2c8&p$ezr#*gq6e-8iep0!4x45'
+)
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']  # В production замени на свои домены
-
+ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -32,7 +32,6 @@ INSTALLED_APPS = [
     'drf_spectacular',
 ]
 
-
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -42,7 +41,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
 
 ROOT_URLCONF = 'home_ai.urls'
 
@@ -104,29 +102,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'core.User'
 
-# Login settings
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
-# Celery settings
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 
-# Channels
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
+            'hosts': [('127.0.0.1', 6379)],
         },
     },
 }
 
-# DRF settings
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
@@ -136,3 +130,9 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API для домашнего ИИ-помощника',
     'VERSION': '1.0.0',
 }
+
+YANDEX_FOLDER_ID = os.getenv('YANDEX_FOLDER_ID', '').strip()
+YANDEX_API_KEY = os.getenv('YANDEX_API_KEY', '').strip()
+YANDEX_MODEL_URI = os.getenv('YANDEX_MODEL_URI', '').strip()
+YANDEX_IAM_TOKEN = os.getenv('YANDEX_IAM_TOKEN', '').strip()
+YANDEX_MODEL_NAME = os.getenv('YANDEX_MODEL_NAME', 'yandexgpt-lite').strip()

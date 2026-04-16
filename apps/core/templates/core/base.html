@@ -62,6 +62,7 @@
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
+
         body {
             font-family: var(--font-body);
             min-height: 100vh;
@@ -86,6 +87,7 @@
             border-radius: 999px;
             z-index: 1000;
         }
+
         .skip-link:focus { top: 16px; }
 
         .app-shell {
@@ -200,8 +202,11 @@
             padding: 0 40px 0 14px;
             border-radius: 999px;
             border: 1px solid var(--border);
-            background:
-                linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface-2) 96%, transparent));
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--surface) 92%, transparent),
+                color-mix(in srgb, var(--surface-2) 96%, transparent)
+            );
             color: var(--text);
             box-shadow: var(--shadow-sm);
             outline: none;
@@ -263,10 +268,7 @@
         h2 { font-size: clamp(1.4rem, 1.1rem + 1vw, 2rem); }
         h3 { font-size: clamp(1.15rem, 1rem + 0.6vw, 1.4rem); }
 
-        .hero__title {
-            max-width: 14ch;
-        }
-
+        .hero__title { max-width: 14ch; }
         .hero__meta {
             color: var(--muted);
             max-width: 42ch;
@@ -277,13 +279,8 @@
             gap: 18px;
         }
 
-        .grid--2 {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .grid--3 {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
+        .grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
         .panel {
             border: 1px solid var(--border);
@@ -299,17 +296,9 @@
             background: linear-gradient(180deg, var(--surface), var(--surface-2));
         }
 
-        .panel__head {
-            padding: 20px 20px 0;
-        }
-
-        .panel__body {
-            padding: 20px;
-        }
-
-        .panel__footer {
-            padding: 0 20px 20px;
-        }
+        .panel__head { padding: 20px 20px 0; }
+        .panel__body { padding: 20px; }
+        .panel__footer { padding: 0 20px 20px; }
 
         .panel + .panel { margin-top: 18px; }
 
@@ -339,8 +328,15 @@
             user-select: none;
         }
 
-        .button:hover { transform: translateY(-1px); text-decoration: none; }
-        .button:active { transform: translateY(0); opacity: 0.94; }
+        .button:hover {
+            transform: translateY(-1px);
+            text-decoration: none;
+        }
+
+        .button:active {
+            transform: translateY(0);
+            opacity: 0.94;
+        }
 
         .button--primary {
             background: linear-gradient(180deg, var(--primary), var(--primary-2));
@@ -385,7 +381,11 @@
 
         .task-card {
             border: 1px solid var(--border);
-            background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface-2) 96%, transparent));
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--surface) 92%, transparent),
+                color-mix(in srgb, var(--surface-2) 96%, transparent)
+            );
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow-sm);
             overflow: hidden;
@@ -715,7 +715,6 @@
                         <div class="nav__group">
                             <a href="{% url 'home' %}" class="nav__link {% if request.resolver_match.url_name == 'home' %}is-active{% endif %}">Мои задачи</a>
                             <a href="{% url 'calendar' %}" class="nav__link {% if request.resolver_match.url_name == 'calendar' %}is-active{% endif %}">Календарь</a>
-                            <a href="{% url 'task_create_with_ai' %}" class="nav__link {% if request.resolver_match.url_name == 'task_create_with_ai' %}is-active{% endif %}">С AI</a>
                             <a href="{% url 'logout' %}" class="nav__link">Выйти</a>
                         </div>
                     {% endif %}
@@ -775,6 +774,7 @@
                         alertEl.remove();
                     });
                 }
+
                 setTimeout(function () {
                     if (alertEl.isConnected) alertEl.remove();
                 }, 4000);

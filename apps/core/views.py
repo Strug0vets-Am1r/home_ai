@@ -1,17 +1,20 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
 from django.db.models import Prefetch
+from django.conf import settings
+
 from .models import User, Task, TaskHistory
 from .forms import TaskForm
 from .tasks import generate_subtasks
+
 import datetime
 import json
 import requests
-
+import traceback
 
 
 def register(request):
@@ -42,7 +45,6 @@ def register(request):
     return render(request, 'core/register.html')
 
 
-
 def user_login(request):
     """Вход пользователя"""
     if request.method == 'POST':
@@ -59,12 +61,10 @@ def user_login(request):
     return render(request, 'core/login.html')
 
 
-
 def user_logout(request):
     """Выход пользователя"""
     logout(request)
     return redirect('login')
-
 
 
 def survey(request):
@@ -96,7 +96,6 @@ def survey(request):
         return redirect('home')
 
     return render(request, 'core/survey.html')
-
 
 
 def generate_initial_tasks(user):
@@ -161,7 +160,6 @@ def generate_initial_tasks(user):
         )
 
 
-
 @login_required
 def home(request):
     """Главная страница со списком задач"""
@@ -170,7 +168,7 @@ def home(request):
         is_completed=False,
         parent_task__isnull=True
     ).prefetch_related(
-        Prefetch('subtasks', queryset=Task.objects.filter(user=request.user).order_by('due_date'))
+        Prefetch('subtasks', queryset=Task.objects.filter(user=request.user).order_by('due_date', 'id'))
     ).order_by('due_date')
 
     completed_tasks = Task.objects.filter(
@@ -178,7 +176,7 @@ def home(request):
         is_completed=True,
         parent_task__isnull=True
     ).prefetch_related(
-        Prefetch('subtasks', queryset=Task.objects.filter(user=request.user).order_by('due_date'))
+        Prefetch('subtasks', queryset=Task.objects.filter(user=request.user).order_by('due_date', 'id'))
     ).order_by('-updated_at', '-due_date')
 
     return render(request, 'core/home.html', {
@@ -187,12 +185,10 @@ def home(request):
     })
 
 
-
 @login_required
 def calendar(request):
     """Страница календаря"""
     return render(request, 'core/calendar.html')
-
 
 
 @login_required
@@ -216,7 +212,6 @@ def complete_task(request, task_id):
     return redirect('home')
 
 
-
 @login_required
 def clear_completed_tasks(request):
     """Удалить все выполненные задачи пользователя"""
@@ -234,6 +229,194 @@ def clear_completed_tasks(request):
     return redirect('home')
 
 
+def _normalize_subtask_title(value):
+    return ' '.join((value or '').strip().split())
+
+
+def _deduplicate_subtasks(subtasks, max_count=10):
+    seen = set()
+    result = []
+
+    for subtask in subtasks:
+        normalized = _normalize_subtask_title(subtask)
+        if not normalized:
+            continue
+
+        key = normalized.lower().rstrip('.,!?:;')
+        if key in seen:
+            continue
+
+        seen.add(key)
+        result.append(normalized)
+
+        if len(result) >= max_count:
+            break
+
+    return result
+
+
+def _build_yandex_headers():
+    api_key = getattr(settings, 'YANDEX_API_KEY', '').strip()
+    iam_token = getattr(settings, 'YANDEX_IAM_TOKEN', '').strip()
+
+    if api_key:
+        return {
+            'Authorization': f'Api-Key {api_key}',
+            'Content-Type': 'application/json',
+        }
+
+    if iam_token:
+        return {
+            'Authorization': f'Bearer {iam_token}',
+            'Content-Type': 'application/json',
+        }
+
+    raise ValueError('Не задан YANDEX_API_KEY или YANDEX_IAM_TOKEN в настройках.')
+
+
+def _build_model_uri():
+    explicit_model_uri = getattr(settings, 'YANDEX_MODEL_URI', '').strip()
+    if explicit_model_uri:
+        return explicit_model_uri
+
+    folder_id = getattr(settings, 'YANDEX_FOLDER_ID', '').strip()
+    model_name = getattr(settings, 'YANDEX_MODEL_NAME', 'yandexgpt-lite').strip() or 'yandexgpt-lite'
+
+    if not folder_id:
+        raise ValueError('Не задан YANDEX_FOLDER_ID или YANDEX_MODEL_URI в настройках.')
+
+    return f'gpt://{folder_id}/{model_name}/latest'
+
+
+def _extract_yandex_text(response_data):
+    if not isinstance(response_data, dict):
+        raise ValueError('Ответ YandexGPT не является JSON-объектом.')
+
+    result = response_data.get('result')
+    if not isinstance(result, dict):
+        raise ValueError(f'YandexGPT не вернул result. Полный ответ: {response_data}')
+
+    alternatives = result.get('alternatives')
+    if not isinstance(alternatives, list) or not alternatives:
+        raise ValueError(f'YandexGPT не вернул alternatives. Полный ответ: {response_data}')
+
+    first_alt = alternatives[0]
+    if not isinstance(first_alt, dict):
+        raise ValueError(f'Некорректный формат alternatives. Полный ответ: {response_data}')
+
+    message = first_alt.get('message')
+    if not isinstance(message, dict):
+        raise ValueError(f'YandexGPT не вернул message. Полный ответ: {response_data}')
+
+    text = message.get('text')
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError(f'YandexGPT вернул пустой text. Полный ответ: {response_data}')
+
+    return text.strip()
+
+
+def _generate_subtasks_with_yandex(task_title, task_description=''):
+    headers = _build_yandex_headers()
+    model_uri = _build_model_uri()
+
+    prompt = f"""
+Ты — AI-помощник по планированию домашних задач.
+
+Сгенерируй подзадачи для задачи пользователя.
+Верни только конкретные, практические, короткие шаги на русском языке.
+
+Требования:
+- Обычно 4-8 подзадач.
+- Максимум 10 подзадач.
+- Минимум 3 подзадачи.
+- Подзадачи должны идти в логическом порядке.
+- Подзадачи не должны дублировать друг друга.
+- Не используй слишком общие фразы вроде:
+  "выполнить задачу",
+  "сделать основную часть",
+  "разделить задачу на шаги",
+  "подготовить всё".
+- Каждый шаг должен быть самостоятельным и понятным действием.
+- Если задача кулинарная, дай предметные шаги по готовке.
+- Если задача бытовая, дай реальные шаги по выполнению.
+- Не добавляй пояснений, комментариев и лишнего текста.
+- Верни ответ строго в JSON-формате по схеме.
+
+Название задачи: {task_title}
+Описание задачи: {task_description or "Описание не указано."}
+""".strip()
+
+    payload = {
+        'modelUri': model_uri,
+        'completionOptions': {
+            'stream': False,
+            'temperature': 0.3,
+            'maxTokens': '800'
+        },
+        'messages': [
+            {
+                'role': 'system',
+                'text': 'Ты возвращаешь только валидный JSON по заданной схеме.'
+            },
+            {
+                'role': 'user',
+                'text': prompt
+            }
+        ],
+        'jsonSchema': {
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'subtasks': {
+                        'type': 'array',
+                        'minItems': 3,
+                        'maxItems': 10,
+                        'items': {
+                            'type': 'string'
+                        }
+                    }
+                },
+                'required': ['subtasks'],
+                'additionalProperties': False
+            }
+        }
+    }
+
+    response = requests.post(
+        'https://llm.api.cloud.yandex.net/foundationModels/v1/completion',
+        headers=headers,
+        json=payload,
+        timeout=60
+    )
+
+    response_text = response.text
+
+    if response.status_code != 200:
+        raise ValueError(f'Ошибка YandexGPT {response.status_code}: {response_text}')
+
+    try:
+        response_data = response.json()
+    except Exception:
+        raise ValueError(f'YandexGPT вернул не-JSON ответ: {response_text}')
+
+    raw_text = _extract_yandex_text(response_data)
+
+    try:
+        parsed = json.loads(raw_text)
+    except json.JSONDecodeError:
+        raise ValueError(f'YandexGPT вернул невалидный JSON в message.text: {raw_text}')
+
+    subtasks = parsed.get('subtasks', [])
+    if not isinstance(subtasks, list):
+        raise ValueError(f'Поле subtasks отсутствует или не является списком: {parsed}')
+
+    subtasks = _deduplicate_subtasks(subtasks, max_count=10)
+
+    if len(subtasks) < 3:
+        raise ValueError(f'YandexGPT вернул слишком мало осмысленных подзадач: {subtasks}')
+
+    return subtasks
+
 
 @login_required
 def task_create(request):
@@ -244,37 +427,71 @@ def task_create(request):
             task = form.save(commit=False)
             task.user = request.user
             task.save()
+
+            subtasks = request.POST.getlist('subtasks')
+            subtasks = _deduplicate_subtasks(subtasks, max_count=10)
+
+            for subtask_title in subtasks:
+                Task.objects.create(
+                    user=request.user,
+                    title=subtask_title,
+                    description='',
+                    due_date=task.due_date,
+                    parent_task=task
+                )
+
             messages.success(request, f'Задача "{task.title}" создана!')
             return redirect('home')
     else:
         form = TaskForm()
 
-    return render(request, 'core/task_form.html', {'form': form, 'title': 'Создать задачу'})
-
+    return render(request, 'core/task_form.html', {
+        'form': form,
+        'title': 'Создать задачу'
+    })
 
 
 @login_required
 def task_edit(request, task_id):
     """Редактирование задачи"""
-    task = Task.objects.get(id=task_id, user=request.user)
+    task = get_object_or_404(Task, id=task_id, user=request.user)
 
     if request.method == 'POST':
         form = TaskForm(request.POST, instance=task)
         if form.is_valid():
-            form.save()
+            task = form.save()
+
+            submitted_subtasks = _deduplicate_subtasks(request.POST.getlist('subtasks'), max_count=10)
+            existing_subtasks = list(task.subtasks.filter(user=request.user).order_by('id'))
+
+            for existing in existing_subtasks:
+                existing.delete()
+
+            for subtask_title in submitted_subtasks:
+                Task.objects.create(
+                    user=request.user,
+                    title=subtask_title,
+                    description='',
+                    due_date=task.due_date,
+                    parent_task=task
+                )
+
             messages.success(request, f'Задача "{task.title}" обновлена!')
             return redirect('home')
     else:
         form = TaskForm(instance=task)
 
-    return render(request, 'core/task_form.html', {'form': form, 'title': 'Редактировать задачу', 'task': task})
-
+    return render(request, 'core/task_form.html', {
+        'form': form,
+        'title': 'Редактировать задачу',
+        'task': task
+    })
 
 
 @login_required
 def task_delete(request, task_id):
     """Удаление задачи"""
-    task = Task.objects.get(id=task_id, user=request.user)
+    task = get_object_or_404(Task, id=task_id, user=request.user)
     title = task.title
 
     if request.method == 'POST':
@@ -283,7 +500,6 @@ def task_delete(request, task_id):
         return redirect('home')
 
     return render(request, 'core/task_confirm_delete.html', {'task': task})
-
 
 
 @login_required
@@ -311,32 +527,66 @@ def api_tasks(request):
     return JsonResponse(events, safe=False)
 
 
-
 @login_required
 def generate_subtasks_view(request, task_id):
-    """Запуск генерации подзадач для задачи"""
-    task = Task.objects.get(id=task_id, user=request.user)
+    """Запуск генерации подзадач для существующей задачи через YandexGPT"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Method not allowed'}, status=405)
 
-    result = generate_subtasks.delay(task.title, task.id)
+    task = get_object_or_404(Task, id=task_id, user=request.user)
 
-    return JsonResponse({
-        'success': True,
-        'task_id': result.id,
-        'message': 'Генерация подзадач завершена!'
-    })
+    try:
+        subtasks = _generate_subtasks_with_yandex(task.title, task.description)
 
+        created_count = 0
+        existing_titles = {
+            subtask.title.strip().lower()
+            for subtask in task.subtasks.filter(user=request.user)
+        }
+
+        for subtask_title in subtasks:
+            if subtask_title.strip().lower() in existing_titles:
+                continue
+
+            Task.objects.create(
+                user=request.user,
+                title=subtask_title,
+                description='',
+                due_date=task.due_date,
+                parent_task=task
+            )
+            created_count += 1
+
+        return JsonResponse({
+            'success': True,
+            'task_id': task.id,
+            'created_count': created_count,
+            'subtasks': subtasks,
+            'message': 'Подзадачи успешно сгенерированы.'
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e),
+            'trace': traceback.format_exc()
+        }, status=500)
 
 
 @login_required
 def task_create_with_ai(request):
     """Создание задачи с AI-генерацией подзадач"""
     if request.method == 'POST':
-        title = request.POST.get('title')
-        description = request.POST.get('description')
-        due_date = request.POST.get('due_date')
+        title = (request.POST.get('title') or '').strip()
+        description = (request.POST.get('description') or '').strip()
+        due_date_raw = request.POST.get('due_date')
 
         from django.utils.dateparse import parse_datetime
-        due_date = parse_datetime(due_date)
+        due_date = parse_datetime(due_date_raw)
+
+        if not title or not due_date:
+            messages.error(request, 'Заполни название и дату задачи.')
+            return render(request, 'core/task_create_with_ai.html')
 
         task = Task.objects.create(
             user=request.user,
@@ -346,105 +596,101 @@ def task_create_with_ai(request):
         )
 
         try:
-            response = requests.post(
-                'http://localhost:8002/generate-subtasks/',
-                json={'task_title': title},
-                timeout=30
+            subtasks = _generate_subtasks_with_yandex(title, description)
+
+            for subtask_title in subtasks:
+                Task.objects.create(
+                    user=request.user,
+                    title=subtask_title,
+                    description='',
+                    due_date=due_date,
+                    parent_task=task
+                )
+
+            messages.success(
+                request,
+                f'Задача "{title}" создана вместе с {len(subtasks)} подзадачами!'
             )
-
-            if response.status_code == 200:
-                data = response.json()
-                subtasks = data.get('subtasks', [])
-
-                for subtask_title in subtasks:
-                    Task.objects.create(
-                        user=request.user,
-                        title=subtask_title,
-                        description='',
-                        due_date=due_date,
-                        parent_task=task
-                    )
-
-                messages.success(request, f'Задача "{title}" создана вместе с {len(subtasks)} подзадачами!')
-            else:
-                messages.warning(request, f'Задача "{title}" создана, но подзадачи не сгенерировались.')
-
-        except requests.exceptions.ConnectionError:
-            messages.warning(request, f'Задача "{title}" создана, но ML service недоступен.')
         except Exception as e:
-            messages.warning(request, f'Задача "{title}" создана, но произошла ошибка генерации подзадач: {str(e)}')
+            messages.warning(
+                request,
+                f'Задача "{title}" создана, но подзадачи не сгенерировались: {str(e)}'
+            )
 
         return redirect('home')
 
     return render(request, 'core/task_create_with_ai.html')
 
 
-
 @login_required
 def api_generate_subtasks(request):
-    """API для генерации подзадач через ML-сервис и сохранения их в БД"""
+    """API для генерации подзадач через YandexGPT"""
     if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
 
     try:
         data = json.loads(request.body)
-        task_title = data.get('task_title')
-        task_id = data.get('task_id')
     except Exception:
-        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+    task_title = (data.get('task_title') or '').strip()
+    task_description = (data.get('task_description') or '').strip()
+    task_id = data.get('task_id')
 
     if not task_title:
-        return JsonResponse({'error': 'task_title is required'}, status=400)
+        return JsonResponse({'status': 'error', 'message': 'task_title is required'}, status=400)
 
     try:
-        response = requests.post(
-            'http://localhost:8002/generate-subtasks/',
-            json={'task_title': task_title},
-            timeout=30
-        )
-
-        if response.status_code != 200:
-            return JsonResponse({'status': 'error', 'message': f'ML service error: {response.status_code}'})
-
-        ml_data = response.json()
-        subtasks = ml_data.get('subtasks', [])
+        subtasks = _generate_subtasks_with_yandex(task_title, task_description)
 
         if task_id:
             try:
                 parent_task = Task.objects.get(id=task_id, user=request.user)
-                created_count = 0
-
-                for subtask_title in subtasks:
-                    if not Task.objects.filter(
-                        user=request.user,
-                        parent_task=parent_task,
-                        title=subtask_title
-                    ).exists():
-                        Task.objects.create(
-                            user=request.user,
-                            title=subtask_title,
-                            description='',
-                            due_date=parent_task.due_date,
-                            parent_task=parent_task
-                        )
-                        created_count += 1
-
-                return JsonResponse({
-                    'status': 'success',
-                    'subtasks': subtasks,
-                    'created_count': created_count,
-                    'message': 'Генерация подзадач завершена!'
-                })
             except Task.DoesNotExist:
-                return JsonResponse({'status': 'error', 'message': 'Родительская задача не найдена.'})
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Родительская задача не найдена.'
+                }, status=404)
+
+            if task_description and not parent_task.description:
+                parent_task.description = task_description
+                parent_task.save(update_fields=['description'])
+
+            existing_titles = {
+                item.title.strip().lower()
+                for item in parent_task.subtasks.filter(user=request.user)
+            }
+
+            created_count = 0
+            for subtask_title in subtasks:
+                if subtask_title.strip().lower() in existing_titles:
+                    continue
+
+                Task.objects.create(
+                    user=request.user,
+                    title=subtask_title,
+                    description='',
+                    due_date=parent_task.due_date,
+                    parent_task=parent_task
+                )
+                created_count += 1
+
+            return JsonResponse({
+                'status': 'success',
+                'subtasks': subtasks,
+                'created_count': created_count,
+                'message': 'Подзадачи успешно сгенерированы.'
+            })
 
         return JsonResponse({
             'status': 'success',
             'subtasks': subtasks,
-            'message': 'Генерация подзадач завершена!'
+            'message': 'Подзадачи успешно сгенерированы.'
         })
 
-    except requests.exceptions.ConnectionError:
-        return JsonResponse({'status': 'error', 'message': 'ML service not available. Make sure it is running on port 8002.'})
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)})
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e),
+            'trace': traceback.format_exc()
+        }, status=500)

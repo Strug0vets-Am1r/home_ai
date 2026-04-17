@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path
 from apps.core import views
 
+
 urlpatterns = [
     path('admin/', admin.site.urls),
 
@@ -17,6 +18,7 @@ urlpatterns = [
     path('task/<int:task_id>/edit/', views.task_edit, name='task_edit'),
     path('task/<int:task_id>/delete/', views.task_delete, name='task_delete'),
     path('task/<int:task_id>/complete/', views.complete_task, name='complete_task'),
+    path('task/<int:task_id>/restore/', views.restore_task, name='restore_task'),
     path('tasks/clear-completed/', views.clear_completed_tasks, name='clear_completed_tasks'),
 
     path('task/create-with-ai/', views.task_create_with_ai, name='task_create_with_ai'),

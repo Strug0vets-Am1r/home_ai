@@ -1,207 +1,371 @@
 {% extends 'core/base.html' %}
 
-
 {% block title %}Главная{% endblock %}
 
-
 {% block content %}
-<div class="hero">
-    <div>
+<div class="hero hero--dashboard">
+    <div class="hero__content">
         <div class="eyebrow">Задачи</div>
         <h1 class="hero__title">Домашние дела под контролем</h1>
+
+        {% with total_tasks=tasks|length|add:completed_tasks|length %}
+        <p class="hero__meta">
+            У вас сейчас
+            {% if tasks or completed_tasks %}
+                {{ tasks|length|add:completed_tasks|length }}
+            {% else %}
+                0
+            {% endif %}
+            задач
+        </p>
+        {% endwith %}
     </div>
-    <p class="hero__meta">
-        Создавай задачи, разбивай их на подзадачи через AI и отмечай выполнение по мере прогресса.
-    </p>
-</div>
 
+    <div class="hero-stats">
+        <div class="hero-stat panel panel--glass">
+            <div class="hero-stat__label">Активные</div>
+            <div class="hero-stat__value">{{ tasks|length }}</div>
+        </div>
 
-<div class="panel panel--glass">
-    <div class="panel__head">
-        <div class="section-title" style="margin: 0;">
-            <h2 style="margin: 0;">Актуальные задачи</h2>
-            <a href="{% url 'task_create' %}" class="button button--primary">+ Новая задача</a>
+        <div class="hero-stat panel panel--glass">
+            <div class="hero-stat__label">Выполненные</div>
+            <div class="hero-stat__value">{{ completed_tasks|length }}</div>
+        </div>
+
+        <div class="hero-stat panel panel--glass">
+            <div class="hero-stat__label">Всего подзадач</div>
+            <div class="hero-stat__value">
+                {% with total_subtasks=0 %}
+                    {% for task in tasks %}
+                        {% with total_subtasks=total_subtasks|add:task.subtasks.all|length %}{% endwith %}
+                    {% endfor %}
+                    {% for task in completed_tasks %}
+                        {% with total_subtasks=total_subtasks|add:task.subtasks.all|length %}{% endwith %}
+                    {% endfor %}
+                    {{ total_subtasks }}
+                {% endwith %}
+            </div>
         </div>
     </div>
+</div>
 
+<div id="subtasks-alert-container"></div>
 
-    <div class="panel__body">
-        <div id="subtasks-alert-container"></div>
+<section class="task-section">
+    <details class="section-panel" id="active-tasks-section">
+        <summary class="section-panel__summary">
+            <div class="section-panel__title-wrap">
+                <h2 class="section-panel__title">Актуальные задачи</h2>
+                <p class="section-panel__meta">
+                    {% if tasks %}
+                        {{ tasks|length }} активных задач
+                    {% else %}
+                        Пока нет активных задач
+                    {% endif %}
+                </p>
+            </div>
 
+            <div class="section-panel__actions" data-prevent-details-toggle>
+                <a href="{% url 'task_create' %}" class="button button--primary">+ Новая задача</a>
+            </div>
+        </summary>
 
-        {% if tasks %}
-            <div class="stack">
-                {% for task in tasks %}
-                    {% with pending_count=task.subtasks.all|length %}
-                    <details class="task-card">
-                        <summary class="task-card__summary">
-                            <div class="task-card__title">
-                                <strong>{{ task.title }}</strong>
-                                {% if pending_count > 0 %}
-                                    <span class="badge badge--muted">Осталось: {{ pending_count }}</span>
-                                {% endif %}
-                            </div>
-                            <div class="task-card__time">{{ task.due_date|date:"d.m.Y H:i" }}</div>
-                        </summary>
+        <div class="section-panel__content">
+            {% if tasks %}
+                <div class="task-list">
+                    {% for task in tasks %}
+                        {% with pending_count=task.subtasks.all|length %}
+                        <article
+                            class="task-preview-card js-task-open"
+                            role="button"
+                            tabindex="0"
+                            aria-label="Открыть задачу {{ task.title }}"
+                            data-modal-target="task-modal-{{ task.id }}"
+                        >
+                            <div class="task-preview-card__top">
+                                <div class="task-preview-card__title-wrap">
+                                    <h3 class="task-preview-card__title">{{ task.title }}</h3>
 
-
-                        <div class="task-card__body">
-                            {% if task.description %}
-                                <p class="task-card__text">{{ task.description }}</p>
-                            {% endif %}
-
-
-                            {% if task.subtasks.all %}
-                                <div class="subtasks">
-                                    {% for subtask in task.subtasks.all %}
-                                        <div
-                                            class="subtask subtask--checkable {% if subtask.is_completed %}is-completed{% endif %}"
-                                            data-subtask-row
-                                            data-subtask-id="{{ subtask.id }}"
-                                            data-parent-task-id="{{ task.id }}"
-                                        >
-                                            <div class="subtask__left">
-                                                <input
-                                                    type="checkbox"
-                                                    class="subtask-checkbox"
-                                                    data-subtask-id="{{ subtask.id }}"
-                                                    data-parent-task-id="{{ task.id }}"
-                                                    {% if subtask.is_completed %}checked{% endif %}
-                                                >
-                                                <span class="subtask__text" data-subtask-text>
-                                                    {{ subtask.title }}
-                                                </span>
-                                            </div>
-
-
-                                            <span
-                                                class="badge {% if subtask.is_completed %}badge--success{% else %}badge--muted{% endif %}"
-                                                data-subtask-badge
-                                            >
-                                                {% if subtask.is_completed %}Выполнено{% else %}Не выполнено{% endif %}
-                                            </span>
-                                        </div>
-                                    {% endfor %}
+                                    {% if pending_count > 0 %}
+                                        <span class="badge badge--muted">Подзадач: {{ pending_count }}</span>
+                                    {% else %}
+                                        <span class="badge badge--success">Готово к выполнению</span>
+                                    {% endif %}
                                 </div>
-                            {% endif %}
 
+                                <div class="task-preview-card__time">
+                                    {{ task.due_date|date:"d.m.Y H:i" }}
+                                </div>
+                            </div>
 
-                            <div style="display:flex; flex-wrap:wrap; gap:10px;">
-                                <a href="{% url 'complete_task' task.id %}" class="button button--success button--small">Завершить задачу</a>
-                                <a href="{% url 'task_edit' task.id %}" class="button button--secondary button--small">Редактировать</a>
-                                <button
-                                    type="button"
-                                    class="button button--ghost button--small js-generate-subtasks"
-                                    data-task-id="{{ task.id }}"
-                                    data-task-title="{{ task.title|escape }}"
-                                >
-                                    Сгенерировать подзадачи
-                                </button>
-                                <a href="{% url 'task_delete' task.id %}" class="button button--danger button--small">Удалить</a>
+                            <div class="task-preview-card__bottom">
+                                <span class="task-preview-card__hint">Нажми, чтобы открыть задачу</span>
+                            </div>
+                        </article>
+
+                        <div
+                            class="modal-backdrop task-modal"
+                            id="task-modal-{{ task.id }}"
+                            aria-hidden="true"
+                        >
+                            <div
+                                class="modal-dialog modal-dialog--task panel panel--glass"
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="task-modal-title-{{ task.id }}"
+                            >
+                                <div class="panel__body task-modal__body">
+                                    <div class="task-modal__header">
+                                        <div class="task-modal__header-main">
+                                            <div class="badge badge--muted" style="width: fit-content;">Актуальная задача</div>
+                                            <h3 id="task-modal-title-{{ task.id }}" class="task-modal__title">{{ task.title }}</h3>
+                                            <p class="task-modal__time">{{ task.due_date|date:"d.m.Y H:i" }}</p>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            class="modal-close-button js-close-task-modal"
+                                            aria-label="Закрыть окно"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+
+                                    <div class="task-modal__content">
+                                        {% if task.description %}
+                                            <div class="task-modal__block">
+                                                <div class="task-modal__label">Описание</div>
+                                                <p class="task-card__text task-modal__description" style="margin: 0;">{{ task.description }}</p>
+                                            </div>
+                                        {% endif %}
+
+                                        <div class="task-modal__block">
+                                            <div class="task-modal__label">Подзадачи</div>
+
+                                            {% if task.subtasks.all %}
+                                                <div class="subtasks">
+                                                    {% for subtask in task.subtasks.all %}
+                                                        <div
+                                                            class="subtask subtask--checkable {% if subtask.is_completed %}is-completed{% endif %}"
+                                                            data-subtask-row
+                                                            data-subtask-id="{{ subtask.id }}"
+                                                            data-parent-task-id="{{ task.id }}"
+                                                        >
+                                                            <div class="subtask__left">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    class="subtask-checkbox"
+                                                                    data-subtask-id="{{ subtask.id }}"
+                                                                    data-parent-task-id="{{ task.id }}"
+                                                                    {% if subtask.is_completed %}checked{% endif %}
+                                                                >
+                                                                <span class="subtask__text" data-subtask-text>
+                                                                    {{ subtask.title }}
+                                                                </span>
+                                                            </div>
+
+                                                            <span
+                                                                class="badge {% if subtask.is_completed %}badge--success{% else %}badge--muted{% endif %}"
+                                                                data-subtask-badge
+                                                            >
+                                                                {% if subtask.is_completed %}Выполнено{% else %}Не выполнено{% endif %}
+                                                            </span>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <p class="muted" style="margin: 0;">У этой задачи пока нет подзадач.</p>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="task-modal__actions">
+                                            <a href="{% url 'complete_task' task.id %}" class="button button--success button--small">Завершить задачу</a>
+                                            <a href="{% url 'task_edit' task.id %}" class="button button--secondary button--small">Редактировать</a>
+                                            <button
+                                                type="button"
+                                                class="button button--ghost button--small js-generate-subtasks"
+                                                data-task-id="{{ task.id }}"
+                                                data-task-title="{{ task.title|escape }}"
+                                            >
+                                                Сгенерировать подзадачи
+                                            </button>
+                                            <a href="{% url 'task_delete' task.id %}" class="button button--danger button--small">Удалить</a>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </details>
-                    {% endwith %}
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="panel panel--glass" style="margin-top: 18px;">
-                <div class="panel__body">
-                    <p class="muted" style="margin: 0 0 12px;">Пока нет активных задач.</p>
-                    <a href="{% url 'task_create' %}" class="button button--primary">Создать первую задачу</a>
+                        {% endwith %}
+                    {% endfor %}
                 </div>
+            {% else %}
+                <div class="panel panel--glass" style="margin-top: 6px;">
+                    <div class="panel__body">
+                        <p class="muted" style="margin: 0 0 12px;">Пока нет активных задач.</p>
+                        <a href="{% url 'task_create' %}" class="button button--primary">Создать первую задачу</a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </details>
+</section>
+
+<section class="task-section">
+    <details class="section-panel" id="completed-tasks-section">
+        <summary class="section-panel__summary">
+            <div class="section-panel__title-wrap">
+                <h2 class="section-panel__title">Выполненные задачи</h2>
+                <p class="section-panel__meta">
+                    {% if completed_tasks %}
+                        {{ completed_tasks|length }} выполненных задач
+                    {% else %}
+                        Пока нет выполненных задач
+                    {% endif %}
+                </p>
             </div>
-        {% endif %}
-    </div>
-</div>
 
+            {% if completed_tasks %}
+                <div class="section-panel__actions" data-prevent-details-toggle>
+                    <form method="post" action="{% url 'clear_completed_tasks' %}" id="clear-completed-form">
+                        {% csrf_token %}
+                        <button
+                            type="button"
+                            class="button button--danger button--small"
+                            id="open-clear-completed-modal"
+                        >
+                            Очистить выполненные
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </summary>
 
-<div class="section-title">
-    <h2 style="margin: 0;">Выполненные задачи</h2>
-    {% if completed_tasks %}
-        <form method="post" action="{% url 'clear_completed_tasks' %}" id="clear-completed-form">
-            {% csrf_token %}
-            <button
-                type="button"
-                class="button button--danger button--small"
-                id="open-clear-completed-modal"
-            >
-                Очистить выполненные
-            </button>
-        </form>
-    {% endif %}
-</div>
-
-
-<div class="panel panel--glass">
-    <div class="panel__body">
-        {% if completed_tasks %}
-            <div class="stack">
-                {% for task in completed_tasks %}
-                    <details class="task-card">
-                        <summary class="task-card__summary">
-                            <div class="task-card__title">
-                                <strong><s>{{ task.title }}</s></strong>
-                                <span class="badge badge--success">Выполнено</span>
-                            </div>
-                            <div class="task-card__time">{{ task.due_date|date:"d.m.Y H:i" }}</div>
-                        </summary>
-
-
-                        <div class="task-card__body">
-                            {% if task.description %}
-                                <p class="task-card__text">{{ task.description }}</p>
-                            {% endif %}
-
-
-                            {% if task.subtasks.all %}
-                                <div class="subtasks">
-                                    {% for subtask in task.subtasks.all %}
-                                        <div
-                                            class="subtask subtask--checkable {% if subtask.is_completed %}is-completed{% endif %}"
-                                            data-subtask-row
-                                            data-subtask-id="{{ subtask.id }}"
-                                            data-parent-task-id="{{ task.id }}"
-                                        >
-                                            <div class="subtask__left">
-                                                <input
-                                                    type="checkbox"
-                                                    class="subtask-checkbox"
-                                                    data-subtask-id="{{ subtask.id }}"
-                                                    data-parent-task-id="{{ task.id }}"
-                                                    {% if subtask.is_completed %}checked{% endif %}
-                                                >
-                                                <span class="subtask__text" data-subtask-text>
-                                                    {{ subtask.title }}
-                                                </span>
-                                            </div>
-
-
-                                            <span
-                                                class="badge {% if subtask.is_completed %}badge--success{% else %}badge--muted{% endif %}"
-                                                data-subtask-badge
-                                            >
-                                                {% if subtask.is_completed %}Выполнено{% else %}Не выполнено{% endif %}
-                                            </span>
-                                        </div>
-                                    {% endfor %}
+        <div class="section-panel__content">
+            {% if completed_tasks %}
+                <div class="task-list">
+                    {% for task in completed_tasks %}
+                        <article
+                            class="task-preview-card task-preview-card--completed js-task-open"
+                            role="button"
+                            tabindex="0"
+                            aria-label="Открыть задачу {{ task.title }}"
+                            data-modal-target="task-modal-{{ task.id }}"
+                        >
+                            <div class="task-preview-card__top">
+                                <div class="task-preview-card__title-wrap">
+                                    <h3 class="task-preview-card__title"><s>{{ task.title }}</s></h3>
+                                    <span class="badge badge--success">Выполнено</span>
                                 </div>
-                            {% endif %}
 
+                                <div class="task-preview-card__time">
+                                    {{ task.due_date|date:"d.m.Y H:i" }}
+                                </div>
+                            </div>
 
-                            <div style="display:flex; flex-wrap:wrap; gap:10px;">
-                                <a href="{% url 'task_delete' task.id %}" class="button button--danger button--small">Удалить</a>
+                            <div class="task-preview-card__bottom">
+                                <span class="task-preview-card__hint">Нажми, чтобы открыть задачу</span>
+                            </div>
+                        </article>
+
+                        <div
+                            class="modal-backdrop task-modal"
+                            id="task-modal-{{ task.id }}"
+                            aria-hidden="true"
+                        >
+                            <div
+                                class="modal-dialog modal-dialog--task panel panel--glass"
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="task-modal-title-{{ task.id }}"
+                            >
+                                <div class="panel__body task-modal__body">
+                                    <div class="task-modal__header">
+                                        <div class="task-modal__header-main">
+                                            <div class="badge badge--success" style="width: fit-content;">Выполнено</div>
+                                            <h3 id="task-modal-title-{{ task.id }}" class="task-modal__title"><s>{{ task.title }}</s></h3>
+                                            <p class="task-modal__time">{{ task.due_date|date:"d.m.Y H:i" }}</p>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            class="modal-close-button js-close-task-modal"
+                                            aria-label="Закрыть окно"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+
+                                    <div class="task-modal__content">
+                                        {% if task.description %}
+                                            <div class="task-modal__block">
+                                                <div class="task-modal__label">Описание</div>
+                                                <p class="task-card__text task-modal__description" style="margin: 0;">{{ task.description }}</p>
+                                            </div>
+                                        {% endif %}
+
+                                        <div class="task-modal__block">
+                                            <div class="task-modal__label">Подзадачи</div>
+
+                                            {% if task.subtasks.all %}
+                                                <div class="subtasks">
+                                                    {% for subtask in task.subtasks.all %}
+                                                        <div
+                                                            class="subtask subtask--checkable {% if subtask.is_completed %}is-completed{% endif %}"
+                                                            data-subtask-row
+                                                            data-subtask-id="{{ subtask.id }}"
+                                                            data-parent-task-id="{{ task.id }}"
+                                                        >
+                                                            <div class="subtask__left">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    class="subtask-checkbox"
+                                                                    data-subtask-id="{{ subtask.id }}"
+                                                                    data-parent-task-id="{{ task.id }}"
+                                                                    {% if subtask.is_completed %}checked{% endif %}
+                                                                >
+                                                                <span class="subtask__text" data-subtask-text>
+                                                                    {{ subtask.title }}
+                                                                </span>
+                                                            </div>
+
+                                                            <span
+                                                                class="badge {% if subtask.is_completed %}badge--success{% else %}badge--muted{% endif %}"
+                                                                data-subtask-badge
+                                                            >
+                                                                {% if subtask.is_completed %}Выполнено{% else %}Не выполнено{% endif %}
+                                                            </span>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <p class="muted" style="margin: 0;">У этой задачи нет подзадач.</p>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="task-modal__actions">
+                                            <a href="{% url 'restore_task' task.id %}" class="button button--secondary button--small">Восстановить</a>
+                                            <a href="{% url 'task_delete' task.id %}" class="button button--danger button--small">Удалить</a>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </details>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="muted" style="margin: 0;">Пока нет выполненных задач.</p>
-        {% endif %}
-    </div>
-</div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="panel panel--glass" style="margin-top: 6px;">
+                    <div class="panel__body">
+                        <p class="muted" style="margin: 0;">Пока нет выполненных задач.</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </details>
+</section>
 
+<footer class="home-footer">
+    <p class="home-footer__text">© 2026 HomeAI. Умный планировщик домашних дел.</p>
+</footer>
 
 <div
     class="modal-backdrop"
@@ -247,12 +411,190 @@
     </div>
 </div>
 
-
 <style>
+    .hero--dashboard {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(320px, 420px);
+        align-items: start;
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
+    .hero--dashboard .hero__content {
+        display: grid;
+        gap: 10px;
+    }
+
+    .hero--dashboard .hero__meta {
+        margin: 0;
+    }
+
+    .hero-stats {
+        display: grid;
+        gap: 12px;
+    }
+
+    .hero-stat {
+        padding: 18px 20px;
+    }
+
+    .hero-stat__label {
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .hero-stat__value {
+        font-size: 1.9rem;
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        color: var(--text);
+    }
+
+    .task-section + .task-section {
+        margin-top: 18px;
+    }
+
+    .section-panel {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: linear-gradient(180deg, var(--surface), var(--surface-2));
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
+
+    .section-panel__summary {
+        list-style: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 20px;
+        cursor: pointer;
+    }
+
+    .section-panel__summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .section-panel__summary::after {
+        content: "▾";
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 700;
+        flex: 0 0 auto;
+        transition: transform 0.18s ease;
+    }
+
+    .section-panel[open] .section-panel__summary::after {
+        transform: rotate(180deg);
+    }
+
+    .section-panel__title-wrap {
+        min-width: 0;
+    }
+
+    .section-panel__title {
+        margin: 0 0 4px;
+    }
+
+    .section-panel__meta {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+    }
+
+    .section-panel__actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-left: auto;
+        margin-right: 8px;
+    }
+
+    .section-panel__content {
+        padding: 0 20px 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    .task-list {
+        display: grid;
+        gap: 14px;
+        margin-top: 18px;
+    }
+
+    .task-preview-card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: linear-gradient(180deg, var(--surface), var(--surface-2));
+        box-shadow: var(--shadow-sm);
+        padding: 18px;
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .task-preview-card:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .task-preview-card:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 3px;
+    }
+
+    .task-preview-card--completed {
+        opacity: 0.95;
+    }
+
+    .task-preview-card__top {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 14px;
+    }
+
+    .task-preview-card__title-wrap {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .task-preview-card__title {
+        margin: 0;
+        font-size: 1.02rem;
+        line-height: 1.2;
+    }
+
+    .task-preview-card__time {
+        color: var(--muted);
+        font-size: 0.92rem;
+        white-space: nowrap;
+        flex: 0 0 auto;
+    }
+
+    .task-preview-card__bottom {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+    }
+
+    .task-preview-card__hint {
+        color: var(--muted);
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
     .subtask--checkable {
         cursor: default;
     }
-
 
     .subtask__left {
         display: flex;
@@ -261,13 +603,11 @@
         min-width: 0;
     }
 
-
     .subtask__text {
         min-width: 0;
         word-break: break-word;
         transition: opacity 0.18s ease, color 0.18s ease;
     }
-
 
     .subtask-checkbox {
         width: 18px;
@@ -278,12 +618,10 @@
         flex: 0 0 auto;
     }
 
-
     .subtask.is-completed .subtask__text {
         text-decoration: line-through;
         opacity: 0.72;
     }
-
 
     .modal-backdrop {
         position: fixed;
@@ -302,13 +640,11 @@
         z-index: 200;
     }
 
-
     .modal-backdrop.is-open {
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
     }
-
 
     .modal-dialog {
         width: min(100%, 520px);
@@ -316,6 +652,133 @@
         box-shadow: var(--shadow-lg);
     }
 
+    .modal-dialog--task {
+        width: min(100%, 760px);
+        max-height: calc(100vh - 40px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .task-modal__body {
+        overflow-y: auto;
+        max-height: calc(100vh - 40px);
+    }
+
+    .task-modal__description {
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .task-modal__header {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+        position: sticky;
+        top: 0;
+        background: var(--surface);
+        padding-bottom: 8px;
+        z-index: 2;
+    }
+
+    .task-modal__header-main {
+        display: grid;
+        gap: 10px;
+    }
+
+    .task-modal__title {
+        margin: 0;
+    }
+
+    .task-modal__time {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.94rem;
+        font-weight: 600;
+    }
+
+    .task-modal__content {
+        display: grid;
+        gap: 18px;
+    }
+
+    .task-modal__block {
+        display: grid;
+        gap: 10px;
+    }
+
+    .task-modal__label {
+        color: var(--muted);
+        font-size: 0.84rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .task-modal__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+
+    .modal-close-button {
+        width: 38px;
+        height: 38px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-2);
+        color: var(--muted);
+        font: inherit;
+        font-size: 1.25rem;
+        line-height: 1;
+        cursor: pointer;
+        transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+        flex: 0 0 auto;
+    }
+
+    .modal-close-button:hover {
+        background: var(--surface);
+        color: var(--text);
+    }
+
+    .home-footer {
+        margin-top: 24px;
+        padding: 18px 0 4px;
+    }
+
+    .home-footer__text {
+        margin: 0;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.92rem;
+    }
+
+    @media (max-width: 920px) {
+        .hero--dashboard {
+            grid-template-columns: 1fr;
+        }
+
+        .section-panel__summary {
+            flex-wrap: wrap;
+        }
+
+        .section-panel__actions {
+            width: 100%;
+            margin: 0;
+        }
+
+        .task-preview-card__top {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .task-preview-card__time {
+            white-space: normal;
+        }
+    }
 
     @media (max-width: 640px) {
         .modal-backdrop {
@@ -323,13 +786,22 @@
             padding: 12px;
         }
 
+        .modal-dialog,
+        .modal-dialog--task {
+            width: 100%;
+            max-height: calc(100vh - 24px);
+        }
 
-        .modal-dialog {
+        .task-modal__body {
+            max-height: calc(100vh - 24px);
+        }
+
+        .task-modal__actions .button,
+        .section-panel__actions .button {
             width: 100%;
         }
     }
 </style>
-
 
 <script>
     function getCookie(name) {
@@ -347,9 +819,12 @@
         return cookieValue;
     }
 
-
     function showSubtasksAlert(message, type) {
         const container = document.getElementById('subtasks-alert-container');
+        if (!container) {
+            return;
+        }
+
         const alert = document.createElement('div');
         alert.className = `alert alert--${type} auto-dismiss-alert`;
         alert.setAttribute('role', 'alert');
@@ -358,7 +833,6 @@
             <button type="button" class="alertclose" aria-label="Закрыть">×</button>
         `;
 
-
         const closeBtn = alert.querySelector('.alertclose');
         if (closeBtn) {
             closeBtn.addEventListener('click', function () {
@@ -366,9 +840,7 @@
             });
         }
 
-
         container.appendChild(alert);
-
 
         setTimeout(function () {
             if (alert.isConnected) {
@@ -377,14 +849,11 @@
         }, 4000);
     }
 
-
     function updateSubtaskRow(row, isCompleted) {
         const badge = row.querySelector('[data-subtask-badge]');
         const text = row.querySelector('[data-subtask-text]');
 
-
         row.classList.toggle('is-completed', isCompleted);
-
 
         if (badge) {
             badge.classList.remove('badge--success', 'badge--muted');
@@ -392,22 +861,21 @@
             badge.textContent = isCompleted ? 'Выполнено' : 'Не выполнено';
         }
 
-
         if (text) {
             text.style.textDecoration = isCompleted ? 'line-through' : 'none';
             text.style.opacity = isCompleted ? '0.72' : '1';
         }
     }
 
-
     function toggleSubtask(checkbox) {
         const subtaskId = checkbox.dataset.subtaskId;
-        const row = document.querySelector(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
+        const allRows = document.querySelectorAll(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
+        const allCheckboxes = document.querySelectorAll(`.subtask-checkbox[data-subtask-id="${subtaskId}"]`);
         const newState = checkbox.checked;
 
-
-        checkbox.disabled = true;
-
+        allCheckboxes.forEach(function (input) {
+            input.disabled = true;
+        });
 
         fetch(`/subtask/${subtaskId}/toggle/`, {
             method: 'POST',
@@ -418,32 +886,40 @@
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                checkbox.checked = data.is_completed;
-                updateSubtaskRow(row, data.is_completed);
+                allCheckboxes.forEach(function (input) {
+                    input.checked = data.is_completed;
+                });
+
+                allRows.forEach(function (row) {
+                    updateSubtaskRow(row, data.is_completed);
+                });
             } else {
-                checkbox.checked = !newState;
+                allCheckboxes.forEach(function (input) {
+                    input.checked = !newState;
+                });
                 showSubtasksAlert(data.message || 'Не удалось обновить статус подзадачи.', 'danger');
             }
         })
         .catch(() => {
-            checkbox.checked = !newState;
+            allCheckboxes.forEach(function (input) {
+                input.checked = !newState;
+            });
             showSubtasksAlert('Ошибка при обновлении подзадачи.', 'danger');
         })
         .finally(() => {
-            checkbox.disabled = false;
+            allCheckboxes.forEach(function (input) {
+                input.disabled = false;
+            });
         });
     }
-
 
     function generateSubtasks(button) {
         const taskId = button.dataset.taskId;
         const taskTitle = button.dataset.taskTitle;
         const oldText = button.innerHTML;
 
-
         button.disabled = true;
         button.innerHTML = 'Генерация...';
-
 
         fetch('{% url "api_generate_subtasks" %}', {
             method: 'POST',
@@ -473,8 +949,63 @@
         });
     }
 
-
     document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-prevent-details-toggle]').forEach(function (element) {
+            element.addEventListener('click', function (event) {
+                event.stopPropagation();
+            });
+        });
+
+        function openTaskModal(modal) {
+            if (!modal) {
+                return;
+            }
+
+            modal.classList.add('is-open');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeTaskModal(modal) {
+            if (!modal) {
+                return;
+            }
+
+            modal.classList.remove('is-open');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        }
+
+        document.querySelectorAll('.js-task-open').forEach(function (card) {
+            const targetId = card.dataset.modalTarget;
+            const modal = document.getElementById(targetId);
+
+            card.addEventListener('click', function () {
+                openTaskModal(modal);
+            });
+
+            card.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openTaskModal(modal);
+                }
+            });
+        });
+
+        document.querySelectorAll('.js-close-task-modal').forEach(function (button) {
+            button.addEventListener('click', function () {
+                closeTaskModal(button.closest('.task-modal'));
+            });
+        });
+
+        document.querySelectorAll('.task-modal').forEach(function (modal) {
+            modal.addEventListener('click', function (event) {
+                if (event.target === modal) {
+                    closeTaskModal(modal);
+                }
+            });
+        });
+
         document.querySelectorAll('.js-generate-subtasks').forEach(function (button) {
             button.addEventListener('click', function (event) {
                 event.preventDefault();
@@ -483,12 +1014,10 @@
             });
         });
 
-
         document.querySelectorAll('.subtask-checkbox').forEach(function (checkbox) {
             checkbox.addEventListener('click', function (event) {
                 event.stopPropagation();
             });
-
 
             checkbox.addEventListener('change', function (event) {
                 event.stopPropagation();
@@ -496,20 +1025,17 @@
             });
         });
 
-
         document.querySelectorAll('[data-subtask-row]').forEach(function (row) {
             row.addEventListener('click', function (event) {
                 event.stopPropagation();
             });
         });
 
-
         const clearCompletedForm = document.getElementById('clear-completed-form');
         const clearCompletedModal = document.getElementById('clear-completed-modal');
         const openClearCompletedModalButton = document.getElementById('open-clear-completed-modal');
         const cancelClearCompletedModalButton = document.getElementById('cancel-clear-completed-modal');
         const confirmClearCompletedModalButton = document.getElementById('confirm-clear-completed-modal');
-
 
         function openClearCompletedModal() {
             if (!clearCompletedModal) {
@@ -525,7 +1051,6 @@
             }
         }
 
-
         function closeClearCompletedModal() {
             if (!clearCompletedModal) {
                 return;
@@ -540,13 +1065,11 @@
             }
         }
 
-
         if (openClearCompletedModalButton) {
             openClearCompletedModalButton.addEventListener('click', function () {
                 openClearCompletedModal();
             });
         }
-
 
         if (cancelClearCompletedModalButton) {
             cancelClearCompletedModalButton.addEventListener('click', function () {
@@ -554,13 +1077,11 @@
             });
         }
 
-
         if (confirmClearCompletedModalButton && clearCompletedForm) {
             confirmClearCompletedModalButton.addEventListener('click', function () {
                 clearCompletedForm.submit();
             });
         }
-
 
         if (clearCompletedModal) {
             clearCompletedModal.addEventListener('click', function (event) {
@@ -570,10 +1091,15 @@
             });
         }
 
-
         document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && clearCompletedModal && clearCompletedModal.classList.contains('is-open')) {
-                closeClearCompletedModal();
+            if (event.key === 'Escape') {
+                if (clearCompletedModal && clearCompletedModal.classList.contains('is-open')) {
+                    closeClearCompletedModal();
+                }
+
+                document.querySelectorAll('.task-modal.is-open').forEach(function (modal) {
+                    closeTaskModal(modal);
+                });
             }
         });
     });

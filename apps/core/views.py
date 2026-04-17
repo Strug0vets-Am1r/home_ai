@@ -9,7 +9,6 @@ from django.conf import settings
 
 from .models import User, Task, TaskHistory
 from .forms import TaskForm
-from .tasks import generate_subtasks
 
 import datetime
 import json
@@ -162,7 +161,10 @@ def home(request):
         is_completed=False,
         parent_task__isnull=True
     ).prefetch_related(
-        Prefetch('subtasks', queryset=Task.objects.filter(user=request.user).order_by('due_date', 'id'))
+        Prefetch(
+            'subtasks',
+            queryset=Task.objects.filter(user=request.user).order_by('due_date', 'id')
+        )
     ).order_by('due_date')
 
     completed_tasks = Task.objects.filter(
@@ -170,7 +172,10 @@ def home(request):
         is_completed=True,
         parent_task__isnull=True
     ).prefetch_related(
-        Prefetch('subtasks', queryset=Task.objects.filter(user=request.user).order_by('due_date', 'id'))
+        Prefetch(
+            'subtasks',
+            queryset=Task.objects.filter(user=request.user).order_by('due_date', 'id')
+        )
     ).order_by('-updated_at', '-due_date')
 
     return render(request, 'core/home.html', {
@@ -187,13 +192,17 @@ def calendar(request):
 @login_required
 def complete_task(request, task_id):
     try:
-        task = Task.objects.get(id=task_id, user=request.user, parent_task__isnull=True)
+        task = Task.objects.get(
+            id=task_id,
+            user=request.user,
+            parent_task__isnull=True
+        )
     except Task.DoesNotExist:
         messages.error(request, 'Задача не найдена.')
         return redirect('home')
 
     task.is_completed = True
-    task.save()
+    task.save(update_fields=['is_completed', 'updated_at'])
 
     TaskHistory.objects.create(
         user=request.user,
@@ -201,6 +210,26 @@ def complete_task(request, task_id):
     )
 
     messages.success(request, f'Задача "{task.title}" выполнена!')
+    return redirect('home')
+
+
+@login_required
+def restore_task(request, task_id):
+    try:
+        task = Task.objects.get(
+            id=task_id,
+            user=request.user,
+            parent_task__isnull=True,
+            is_completed=True
+        )
+    except Task.DoesNotExist:
+        messages.error(request, 'Задача для восстановления не найдена.')
+        return redirect('home')
+
+    task.is_completed = False
+    task.save(update_fields=['is_completed', 'updated_at'])
+
+    messages.success(request, f'Задача "{task.title}" снова активна!')
     return redirect('home')
 
 
@@ -473,7 +502,10 @@ def task_edit(request, task_id):
         if form.is_valid():
             task = form.save()
 
-            submitted_subtasks = _deduplicate_subtasks(request.POST.getlist('subtasks'), max_count=10)
+            submitted_subtasks = _deduplicate_subtasks(
+                request.POST.getlist('subtasks'),
+                max_count=10
+            )
             existing_subtasks = list(task.subtasks.filter(user=request.user).order_by('id'))
 
             for existing in existing_subtasks:

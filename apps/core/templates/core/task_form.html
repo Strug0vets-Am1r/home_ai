@@ -3,19 +3,19 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="hero">
+<div class="hero task-form-hero">
     <div>
-        <div class="eyebrow">Редактирование</div>
-        <h1 class="hero__title">{{ title }}</h1>
+        <div class="eyebrow">Задачи</div>
+        <h1 class="hero__title task-form-title">{{ title }}</h1>
     </div>
     <p class="hero__meta">
-        Заполни основные данные задачи и при необходимости сгенерируй подзадачи через AI.
+        Заполни основные данные задачи, при необходимости добавь подзадачи вручную или сгенерируй их через AI.
     </p>
 </div>
 
-<div class="panel panel--glass">
+<div class="panel panel--glass task-form-panel">
     <div class="panel__body">
-        <form method="post" class="form-grid" id="task-form">
+        <form method="post" class="form-grid task-form-grid" id="task-form">
             {% csrf_token %}
 
             <div class="field">
@@ -29,33 +29,30 @@
             <div class="field">
                 <label class="field__label" for="{{ form.description.id_for_label }}">Описание</label>
                 {{ form.description }}
-                <div class="muted">Описание поможет AI сгенерировать более точные подзадачи.</div>
                 {% if form.description.errors %}
                     <div class="muted">{{ form.description.errors }}</div>
                 {% endif %}
             </div>
 
             <div class="field">
-                <div class="section-title" style="margin: 0;">
+                <div class="section-title section-title--subtasks task-form-subtasks-head">
                     <div>
-                        <label class="field__label" style="display:block; margin-bottom: 4px;">Подзадачи</label>
-                        <div class="muted">
-                            Можно добавить вручную, удалить лишние или сгенерировать через AI.
-                        </div>
+                        <label class="field__label task-form-subtasks-label">Подзадачи</label>
                     </div>
-                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+
+                    <div class="subtasks-actions">
                         <button type="button" class="button button--ghost button--small" id="generate-subtasks-btn">
                             Сгенерировать через AI
                         </button>
                         <button type="button" class="button button--secondary button--small" id="add-subtask-btn">
-                            + Добавить
+                            Добавить
                         </button>
                     </div>
                 </div>
 
                 <div id="subtasks-alert-container"></div>
 
-                <div id="subtasks-list" class="stack">
+                <div id="subtasks-list" class="stack task-form-subtasks-list">
                     {% if task and task.subtasks.all %}
                         {% for subtask in task.subtasks.all %}
                             <div class="subtask-editor">
@@ -77,7 +74,7 @@
                                 type="text"
                                 name="subtasks"
                                 class="input"
-                                placeholder="Например: отварить пасту"
+                                placeholder="Введите подзадачу"
                             >
                             <button type="button" class="button button--danger button--small js-remove-subtask">
                                 Удалить
@@ -89,35 +86,455 @@
 
             <div class="field">
                 <label class="field__label" for="{{ form.due_date.id_for_label }}">Дата и время выполнения</label>
-                {{ form.due_date }}
+
+                <div class="datetime-field-wrap">
+                    {{ form.due_date }}
+                </div>
+
                 {% if form.due_date.errors %}
                     <div class="muted">{{ form.due_date.errors }}</div>
                 {% endif %}
             </div>
 
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                <button type="submit" class="button button--primary">Сохранить</button>
-                <a href="{% url 'home' %}" class="button button--secondary">Отмена</a>
+            <div class="task-form-actions">
+                <button type="submit" class="button button--success">Сохранить</button>
+                <a href="{% url 'home' %}" class="button button--danger">Отмена</a>
             </div>
         </form>
     </div>
 </div>
 
+<div class="mini-datetime-modal" id="mini-datetime-modal" hidden>
+    <div class="mini-datetime-modal__backdrop" id="mini-datetime-backdrop"></div>
+
+    <div
+        class="mini-datetime-modal__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mini-datetime-title"
+    >
+        <div class="mini-datetime-modal__header">
+            <h3 id="mini-datetime-title">Дата и время</h3>
+
+            <button
+                type="button"
+                class="mini-datetime-modal__close"
+                id="mini-datetime-close"
+                aria-label="Закрыть"
+            >
+                ×
+            </button>
+        </div>
+
+        <div class="mini-calendar__head">
+            <button type="button" class="mini-calendar__nav" id="mini-prev-month" aria-label="Предыдущий месяц">←</button>
+            <div class="mini-calendar__title" id="mini-current-month"></div>
+            <button type="button" class="mini-calendar__nav" id="mini-next-month" aria-label="Следующий месяц">→</button>
+        </div>
+
+        <div class="mini-calendar__weekdays">
+            <span>Пн</span>
+            <span>Вт</span>
+            <span>Ср</span>
+            <span>Чт</span>
+            <span>Пт</span>
+            <span>Сб</span>
+            <span>Вс</span>
+        </div>
+
+        <div class="mini-calendar__grid" id="mini-calendar-grid"></div>
+
+        <div class="mini-datetime-time">
+            <div class="field mini-datetime-field">
+                <label class="field__label" for="mini-picker-hours">Часы</label>
+                <select id="mini-picker-hours" class="select mini-datetime-time__select"></select>
+            </div>
+
+            <div class="field mini-datetime-field">
+                <label class="field__label" for="mini-picker-minutes">Минуты</label>
+                <select id="mini-picker-minutes" class="select mini-datetime-time__select"></select>
+            </div>
+        </div>
+
+        <div class="mini-datetime-modal__footer">
+            <div class="mini-datetime-modal__actions">
+                <button type="button" class="button button--danger button--small" id="mini-datetime-cancel">
+                    Отмена
+                </button>
+                <button type="button" class="button button--success button--small" id="mini-datetime-apply">
+                    Применить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
+    body:has(#task-form) .page {
+        padding-top: 12px;
+        padding-bottom: 16px;
+    }
+
+    .task-form-hero {
+        margin-bottom: 12px;
+    }
+
+    .task-form-title {
+        margin: 0;
+    }
+
+    .task-form-panel {
+        overflow: hidden;
+    }
+
+    .task-form-grid {
+        gap: 16px;
+    }
+
+    .field {
+        gap: 8px;
+    }
+
+    .field__label,
+    .input,
+    .textarea,
+    .select,
+    .button {
+        font-size: 0.95rem;
+    }
+
+    .field__label {
+        font-weight: 600;
+    }
+
+    .task-form-subtasks-head {
+        margin: 0 0 8px;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .task-form-subtasks-label {
+        display: block;
+        margin-bottom: 0;
+    }
+
+    .task-form-subtasks-list {
+        gap: 10px;
+    }
+
+    .subtasks-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
     .subtask-editor {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
         gap: 10px;
         align-items: center;
-        padding: 14px;
+        padding: 12px;
         border: 1px solid var(--border);
-        border-radius: 18px;
-        background: color-mix(in srgb, var(--surface) 88%, var(--surface-2));
+        border-radius: 16px;
+        background: var(--surface-3);
+    }
+
+    .task-form-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding-top: 2px;
+    }
+
+    .datetime-field-wrap {
+        position: relative;
+    }
+
+    .datetime-field-wrap .input {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .datetime-field-wrap .input::-webkit-calendar-picker-indicator {
+        opacity: 0;
+        pointer-events: none;
+        position: absolute;
+    }
+
+    .datetime-field-wrap .input::-webkit-inner-spin-button,
+    .datetime-field-wrap .input::-webkit-clear-button {
+        display: none;
+    }
+
+    .mini-datetime-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 220;
+        display: grid;
+        place-items: center;
+        padding: 16px;
+    }
+
+    .mini-datetime-modal[hidden] {
+        display: none;
+    }
+
+    .mini-datetime-modal__backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(9, 13, 20, 0.34);
+    }
+
+    .mini-datetime-modal__dialog {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 360px);
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: #ffffff;
+        color: #162033;
+        box-shadow: 0 18px 50px rgba(12, 20, 34, 0.22);
+        padding: 16px;
+        display: grid;
+        gap: 14px;
+    }
+
+    html[data-theme="dark"] .mini-datetime-modal__dialog {
+        background: #111827;
+        color: #e9eef8;
+        border-color: rgba(255, 255, 255, 0.12);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.42);
+    }
+
+    .mini-datetime-modal__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .mini-datetime-modal__close {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 1px solid #d7ddea;
+        background: #f3f6fb;
+        color: #63708a;
+        font: inherit;
+        font-size: 1.15rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    html[data-theme="dark"] .mini-datetime-modal__close {
+        background: #1f2937;
+        color: #9aa7bc;
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .mini-datetime-modal__close:hover {
+        color: inherit;
+    }
+
+    .mini-calendar__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .mini-calendar__title {
+        flex: 1 1 auto;
+        text-align: center;
+        font-size: 0.98rem;
+        font-weight: 700;
+        color: inherit;
+    }
+
+    .mini-calendar__nav {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 1px solid #d7ddea;
+        background: #f3f6fb;
+        color: inherit;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    html[data-theme="dark"] .mini-calendar__nav {
+        background: #1f2937;
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .mini-calendar__weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .mini-calendar__weekdays span {
+        text-align: center;
+        color: #63708a;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    html[data-theme="dark"] .mini-calendar__weekdays span {
+        color: #9aa7bc;
+    }
+
+    .mini-calendar__grid {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .mini-calendar__day {
+        min-height: 34px;
+        border-radius: 10px;
+        border: 1px solid #d7ddea;
+        background: #f8fafc;
+        color: inherit;
+        font: inherit;
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    html[data-theme="dark"] .mini-calendar__day {
+        background: #1f2937;
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .mini-calendar__day:hover {
+        border-color: #b8c4db;
+        background: #eef3fb;
+    }
+
+    html[data-theme="dark"] .mini-calendar__day:hover {
+        background: #243041;
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .mini-calendar__day.is-outside {
+        opacity: 0.42;
+    }
+
+    .mini-calendar__day.is-disabled {
+        opacity: 0.28;
+        cursor: not-allowed;
+    }
+
+    .mini-calendar__day.is-disabled:hover {
+        background: #f8fafc;
+        border-color: #d7ddea;
+    }
+
+    html[data-theme="dark"] .mini-calendar__day.is-disabled:hover {
+        background: #1f2937;
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .mini-calendar__day.is-today {
+        border-color: var(--primary);
+        box-shadow: inset 0 0 0 1px rgba(43, 108, 255, 0.18);
+    }
+
+    .mini-calendar__day.is-selected {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .mini-datetime-time {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .mini-datetime-field {
+        gap: 6px;
+    }
+
+    .mini-datetime-time__select {
+        min-height: 40px;
+        background: #ffffff;
+        color: inherit;
+        border: 1px solid #d7ddea;
+    }
+
+    html[data-theme="dark"] .mini-datetime-time__select {
+        background: #1f2937;
+        color: #e9eef8;
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .mini-datetime-modal__footer {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .mini-datetime-modal__actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
     }
 
     @media (max-width: 640px) {
+        body:has(#task-form) .page {
+            padding-top: 8px;
+            padding-bottom: 12px;
+        }
+
+        .task-form-hero {
+            margin-bottom: 10px;
+        }
+
+        .task-form-subtasks-head {
+            align-items: stretch;
+        }
+
+        .subtasks-actions {
+            width: 100%;
+        }
+
+        .subtasks-actions .button {
+            width: 100%;
+        }
+
         .subtask-editor {
             grid-template-columns: 1fr;
+        }
+
+        .task-form-actions .button {
+            width: 100%;
+        }
+
+        .mini-datetime-modal__dialog {
+            width: min(100%, 100%);
+        }
+
+        .mini-datetime-time {
+            grid-template-columns: 1fr;
+        }
+
+        .mini-datetime-modal__footer {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .mini-datetime-modal__actions {
+            width: 100%;
+        }
+
+        .mini-datetime-modal__actions .button {
+            width: 100%;
         }
     }
 </style>
@@ -138,8 +555,22 @@
         const generateBtn = document.getElementById('generate-subtasks-btn');
         const titleInput = document.getElementById('{{ form.title.id_for_label }}');
         const descriptionInput = document.getElementById('{{ form.description.id_for_label }}');
+        const dueDateInput = document.getElementById('{{ form.due_date.id_for_label }}');
         const alertsContainer = document.getElementById('subtasks-alert-container');
         const MAX_SUBTASKS = 10;
+
+        const modal = document.getElementById('mini-datetime-modal');
+        const backdrop = document.getElementById('mini-datetime-backdrop');
+        const closeButton = document.getElementById('mini-datetime-close');
+        const cancelButton = document.getElementById('mini-datetime-cancel');
+        const applyButton = document.getElementById('mini-datetime-apply');
+        const prevMonthButton = document.getElementById('mini-prev-month');
+        const nextMonthButton = document.getElementById('mini-next-month');
+        const currentMonthLabel = document.getElementById('mini-current-month');
+        const calendarGrid = document.getElementById('mini-calendar-grid');
+        const hoursSelect = document.getElementById('mini-picker-hours');
+        const minutesSelect = document.getElementById('mini-picker-minutes');
+        const form = document.getElementById('task-form');
 
         function escapeHtml(value) {
             return String(value)
@@ -171,10 +602,10 @@
             alert.setAttribute('role', 'alert');
             alert.innerHTML = `
                 ${escapeHtml(message)}
-                <button type="button" class="alert__close" aria-label="Закрыть уведомление">×</button>
+                <button type="button" class="alertclose" aria-label="Закрыть">×</button>
             `;
 
-            const closeBtn = alert.querySelector('.alert__close');
+            const closeBtn = alert.querySelector('.alertclose');
             closeBtn.addEventListener('click', function () {
                 alert.remove();
             });
@@ -239,6 +670,14 @@
             return result.slice(0, MAX_SUBTASKS);
         }
 
+        if (titleInput) {
+            titleInput.placeholder = 'Введите название задачи';
+        }
+
+        if (descriptionInput) {
+            descriptionInput.placeholder = 'Описание поможет AI сгенерировать более точные подзадачи';
+        }
+
         addSubtaskBtn.addEventListener('click', function () {
             const count = subtasksList.querySelectorAll('.subtask-editor').length;
             if (count >= MAX_SUBTASKS) {
@@ -261,7 +700,7 @@
 
             generateBtn.disabled = true;
             const oldText = generateBtn.innerHTML;
-            generateBtn.innerHTML = '⏳ Генерация...';
+            generateBtn.innerHTML = 'Генерация...';
 
             fetch('{% url "api_generate_subtasks" %}', {
                 method: 'POST',
@@ -307,6 +746,364 @@
         });
 
         bindRemoveButtons();
+
+        if (!dueDateInput) {
+            return;
+        }
+
+        dueDateInput.classList.add('input');
+        dueDateInput.readOnly = true;
+        dueDateInput.setAttribute('autocomplete', 'off');
+
+        const monthNames = [
+            'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+            'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+        ];
+
+        function pad(value) {
+            return String(value).padStart(2, '0');
+        }
+
+        function getNow() {
+            const now = new Date();
+            now.setSeconds(0);
+            now.setMilliseconds(0);
+            return now;
+        }
+
+        function getMinSelectableDate() {
+            const now = getNow();
+            const rounded = new Date(now);
+            const remainder = rounded.getMinutes() % 5;
+
+            if (remainder !== 0) {
+                rounded.setMinutes(rounded.getMinutes() + (5 - remainder));
+            }
+
+            if (rounded.getSeconds() !== 0 || rounded.getMilliseconds() !== 0) {
+                rounded.setSeconds(0);
+                rounded.setMilliseconds(0);
+            }
+
+            if (rounded.getTime() <= now.getTime()) {
+                rounded.setMinutes(rounded.getMinutes() + 5);
+            }
+
+            rounded.setSeconds(0);
+            rounded.setMilliseconds(0);
+            return rounded;
+        }
+
+        function parseDateValue(value) {
+            if (!value) {
+                return null;
+            }
+
+            const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+            if (!match) {
+                return null;
+            }
+
+            return new Date(
+                Number(match[1]),
+                Number(match[2]) - 1,
+                Number(match[3]),
+                Number(match[4]),
+                Number(match[5]),
+                0,
+                0
+            );
+        }
+
+        function formatDateValue(date) {
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        }
+
+        function startOfDay(date) {
+            return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        }
+
+        function normalizeDraftAgainstMin() {
+            const minDate = getMinSelectableDate();
+            if (draftDate.getTime() < minDate.getTime()) {
+                draftDate = new Date(minDate);
+            }
+        }
+
+        function isInvalidPastDate(date) {
+            return date.getTime() < getMinSelectableDate().getTime();
+        }
+
+        let selectedDate = parseDateValue(dueDateInput.value);
+        let draftDate = selectedDate ? new Date(selectedDate) : new Date(getMinSelectableDate());
+
+        normalizeDraftAgainstMin();
+
+        let visibleMonth = new Date(draftDate.getFullYear(), draftDate.getMonth(), 1);
+
+        dueDateInput.min = formatDateValue(getMinSelectableDate());
+
+        function populateTimeOptions() {
+            hoursSelect.innerHTML = '';
+            minutesSelect.innerHTML = '';
+
+            for (let i = 0; i < 24; i += 1) {
+                const option = document.createElement('option');
+                option.value = pad(i);
+                option.textContent = pad(i);
+                hoursSelect.appendChild(option);
+            }
+
+            for (let i = 0; i < 60; i += 5) {
+                const option = document.createElement('option');
+                option.value = pad(i);
+                option.textContent = pad(i);
+                minutesSelect.appendChild(option);
+            }
+        }
+
+        function applyTimeRestrictions() {
+            const minDate = getMinSelectableDate();
+            const selectedDayStart = startOfDay(draftDate).getTime();
+            const minDayStart = startOfDay(minDate).getTime();
+            const isMinDay = selectedDayStart === minDayStart;
+
+            Array.from(hoursSelect.options).forEach(function (option) {
+                option.disabled = false;
+
+                if (isMinDay && Number(option.value) < minDate.getHours()) {
+                    option.disabled = true;
+                }
+            });
+
+            const selectedHourOption = Array.from(hoursSelect.options).find(function (option) {
+                return option.value === hoursSelect.value;
+            });
+
+            if (!selectedHourOption || selectedHourOption.disabled) {
+                const firstAvailableHour = Array.from(hoursSelect.options).find(function (option) {
+                    return !option.disabled;
+                });
+                if (firstAvailableHour) {
+                    hoursSelect.value = firstAvailableHour.value;
+                }
+            }
+
+            Array.from(minutesSelect.options).forEach(function (option) {
+                option.disabled = false;
+
+                if (
+                    isMinDay &&
+                    Number(hoursSelect.value) === minDate.getHours() &&
+                    Number(option.value) < minDate.getMinutes()
+                ) {
+                    option.disabled = true;
+                }
+            });
+
+            const selectedMinuteOption = Array.from(minutesSelect.options).find(function (option) {
+                return option.value === minutesSelect.value;
+            });
+
+            if (!selectedMinuteOption || selectedMinuteOption.disabled) {
+                const firstAvailableMinute = Array.from(minutesSelect.options).find(function (option) {
+                    return !option.disabled;
+                });
+
+                if (firstAvailableMinute) {
+                    minutesSelect.value = firstAvailableMinute.value;
+                } else {
+                    const nextAvailableHour = Array.from(hoursSelect.options).find(function (option) {
+                        return !option.disabled && Number(option.value) > Number(hoursSelect.value);
+                    });
+
+                    if (nextAvailableHour) {
+                        hoursSelect.value = nextAvailableHour.value;
+                        Array.from(minutesSelect.options).forEach(function (option) {
+                            option.disabled = false;
+                        });
+                        minutesSelect.value = '00';
+                    }
+                }
+            }
+        }
+
+        function syncTimeSelectors() {
+            normalizeDraftAgainstMin();
+            hoursSelect.value = pad(draftDate.getHours());
+            minutesSelect.value = pad(draftDate.getMinutes());
+            applyTimeRestrictions();
+        }
+
+        function updateDraftTimeFromSelectors() {
+            draftDate.setHours(Number(hoursSelect.value));
+            draftDate.setMinutes(Number(minutesSelect.value));
+            draftDate.setSeconds(0);
+            draftDate.setMilliseconds(0);
+
+            normalizeDraftAgainstMin();
+            hoursSelect.value = pad(draftDate.getHours());
+            minutesSelect.value = pad(draftDate.getMinutes());
+            applyTimeRestrictions();
+        }
+
+        function renderCalendar() {
+            currentMonthLabel.textContent = `${monthNames[visibleMonth.getMonth()]} ${visibleMonth.getFullYear()}`;
+            calendarGrid.innerHTML = '';
+
+            const firstDayOfMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
+            const firstWeekday = firstDayOfMonth.getDay() === 0 ? 7 : firstDayOfMonth.getDay();
+            const startDate = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1 - (firstWeekday - 1));
+            const minDayStart = startOfDay(getMinSelectableDate()).getTime();
+
+            for (let i = 0; i < 42; i += 1) {
+                const dayDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
+                const dayButton = document.createElement('button');
+
+                dayButton.type = 'button';
+                dayButton.className = 'mini-calendar__day';
+                dayButton.textContent = dayDate.getDate();
+
+                if (dayDate.getMonth() !== visibleMonth.getMonth()) {
+                    dayButton.classList.add('is-outside');
+                }
+
+                if (startOfDay(dayDate).getTime() < minDayStart) {
+                    dayButton.classList.add('is-disabled');
+                    dayButton.disabled = true;
+                }
+
+                if (startOfDay(dayDate).getTime() === startOfDay(getNow()).getTime()) {
+                    dayButton.classList.add('is-today');
+                }
+
+                if (startOfDay(dayDate).getTime() === startOfDay(draftDate).getTime()) {
+                    dayButton.classList.add('is-selected');
+                }
+
+                if (!dayButton.disabled) {
+                    dayButton.addEventListener('click', function () {
+                        draftDate = new Date(
+                            dayDate.getFullYear(),
+                            dayDate.getMonth(),
+                            dayDate.getDate(),
+                            Number(hoursSelect.value),
+                            Number(minutesSelect.value),
+                            0,
+                            0
+                        );
+
+                        normalizeDraftAgainstMin();
+                        syncTimeSelectors();
+                        visibleMonth = new Date(draftDate.getFullYear(), draftDate.getMonth(), 1);
+                        renderCalendar();
+                    });
+                }
+
+                calendarGrid.appendChild(dayButton);
+            }
+        }
+
+        function openModal() {
+            dueDateInput.min = formatDateValue(getMinSelectableDate());
+
+            selectedDate = parseDateValue(dueDateInput.value);
+            draftDate = selectedDate ? new Date(selectedDate) : new Date(getMinSelectableDate());
+
+            normalizeDraftAgainstMin();
+            visibleMonth = new Date(draftDate.getFullYear(), draftDate.getMonth(), 1);
+            syncTimeSelectors();
+            renderCalendar();
+
+            modal.hidden = false;
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modal.hidden = true;
+            document.body.style.overflow = '';
+        }
+
+        populateTimeOptions();
+        syncTimeSelectors();
+        renderCalendar();
+
+        dueDateInput.addEventListener('click', function (event) {
+            event.preventDefault();
+            openModal();
+        });
+
+        dueDateInput.addEventListener('focus', function () {
+            dueDateInput.blur();
+        });
+
+        dueDateInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openModal();
+            }
+        });
+
+        backdrop.addEventListener('click', closeModal);
+        closeButton.addEventListener('click', closeModal);
+        cancelButton.addEventListener('click', closeModal);
+
+        applyButton.addEventListener('click', function () {
+            updateDraftTimeFromSelectors();
+
+            if (isInvalidPastDate(draftDate)) {
+                draftDate = new Date(getMinSelectableDate());
+                syncTimeSelectors();
+                renderCalendar();
+                return;
+            }
+
+            dueDateInput.value = formatDateValue(draftDate);
+            dueDateInput.min = formatDateValue(getMinSelectableDate());
+            closeModal();
+        });
+
+        prevMonthButton.addEventListener('click', function () {
+            const candidateMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1);
+            const currentMonthStart = new Date(getMinSelectableDate().getFullYear(), getMinSelectableDate().getMonth(), 1);
+
+            if (candidateMonth < currentMonthStart) {
+                return;
+            }
+
+            visibleMonth = candidateMonth;
+            renderCalendar();
+        });
+
+        nextMonthButton.addEventListener('click', function () {
+            visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1);
+            renderCalendar();
+        });
+
+        hoursSelect.addEventListener('change', function () {
+            updateDraftTimeFromSelectors();
+        });
+
+        minutesSelect.addEventListener('change', function () {
+            updateDraftTimeFromSelectors();
+        });
+
+        form.addEventListener('submit', function (event) {
+            const parsed = parseDateValue(dueDateInput.value);
+
+            dueDateInput.min = formatDateValue(getMinSelectableDate());
+
+            if (!parsed || isInvalidPastDate(parsed)) {
+                event.preventDefault();
+                return;
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && !modal.hidden) {
+                closeModal();
+            }
+        });
     })();
 </script>
 {% endblock %}

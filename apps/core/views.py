@@ -18,7 +18,6 @@ import traceback
 
 
 def register(request):
-    """Регистрация нового пользователя"""
     if request.method == 'POST':
         username = request.POST.get('username')
         email = request.POST.get('email')
@@ -46,7 +45,6 @@ def register(request):
 
 
 def user_login(request):
-    """Вход пользователя"""
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
@@ -62,13 +60,11 @@ def user_login(request):
 
 
 def user_logout(request):
-    """Выход пользователя"""
     logout(request)
     return redirect('login')
 
 
 def survey(request):
-    """Страница опроса пользователя"""
     if not request.user.is_authenticated:
         return redirect('register')
 
@@ -99,7 +95,6 @@ def survey(request):
 
 
 def generate_initial_tasks(user):
-    """Генерация стартовых задач на основе опроса"""
     today = timezone.now()
 
     tasks = [
@@ -162,7 +157,6 @@ def generate_initial_tasks(user):
 
 @login_required
 def home(request):
-    """Главная страница со списком задач"""
     active_tasks = Task.objects.filter(
         user=request.user,
         is_completed=False,
@@ -187,15 +181,13 @@ def home(request):
 
 @login_required
 def calendar(request):
-    """Страница календаря"""
     return render(request, 'core/calendar.html')
 
 
 @login_required
 def complete_task(request, task_id):
-    """Отметить задачу как выполненную"""
     try:
-        task = Task.objects.get(id=task_id, user=request.user)
+        task = Task.objects.get(id=task_id, user=request.user, parent_task__isnull=True)
     except Task.DoesNotExist:
         messages.error(request, 'Задача не найдена.')
         return redirect('home')
@@ -213,8 +205,30 @@ def complete_task(request, task_id):
 
 
 @login_required
+def toggle_subtask(request, subtask_id):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+    subtask = get_object_or_404(
+        Task,
+        id=subtask_id,
+        user=request.user,
+        parent_task__isnull=False
+    )
+
+    subtask.is_completed = not subtask.is_completed
+    subtask.save(update_fields=['is_completed', 'updated_at'])
+
+    return JsonResponse({
+        'status': 'success',
+        'subtask_id': subtask.id,
+        'is_completed': subtask.is_completed,
+        'message': 'Статус подзадачи обновлён.'
+    })
+
+
+@login_required
 def clear_completed_tasks(request):
-    """Удалить все выполненные задачи пользователя"""
     if request.method == 'POST':
         deleted_count, _ = Task.objects.filter(
             user=request.user,
@@ -420,7 +434,6 @@ def _generate_subtasks_with_yandex(task_title, task_description=''):
 
 @login_required
 def task_create(request):
-    """Создание новой задачи"""
     if request.method == 'POST':
         form = TaskForm(request.POST)
         if form.is_valid():
@@ -453,7 +466,6 @@ def task_create(request):
 
 @login_required
 def task_edit(request, task_id):
-    """Редактирование задачи"""
     task = get_object_or_404(Task, id=task_id, user=request.user)
 
     if request.method == 'POST':
@@ -490,7 +502,6 @@ def task_edit(request, task_id):
 
 @login_required
 def task_delete(request, task_id):
-    """Удаление задачи"""
     task = get_object_or_404(Task, id=task_id, user=request.user)
     title = task.title
 
@@ -504,7 +515,6 @@ def task_delete(request, task_id):
 
 @login_required
 def api_tasks(request):
-    """API для получения задач в формате FullCalendar"""
     tasks = Task.objects.filter(user=request.user, parent_task__isnull=True)
 
     events = []
@@ -529,7 +539,6 @@ def api_tasks(request):
 
 @login_required
 def generate_subtasks_view(request, task_id):
-    """Запуск генерации подзадач для существующей задачи через YandexGPT"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'Method not allowed'}, status=405)
 
@@ -575,7 +584,6 @@ def generate_subtasks_view(request, task_id):
 
 @login_required
 def task_create_with_ai(request):
-    """Создание задачи с AI-генерацией подзадач"""
     if request.method == 'POST':
         title = (request.POST.get('title') or '').strip()
         description = (request.POST.get('description') or '').strip()
@@ -624,7 +632,6 @@ def task_create_with_ai(request):
 
 @login_required
 def api_generate_subtasks(request):
-    """API для генерации подзадач через YandexGPT"""
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
 

@@ -21,6 +21,7 @@ urlpatterns = [
 
     path('task/create-with-ai/', views.task_create_with_ai, name='task_create_with_ai'),
     path('task/<int:task_id>/generate-subtasks/', views.generate_subtasks_view, name='generate_subtasks_view'),
+    path('subtask/<int:subtask_id>/toggle/', views.toggle_subtask, name='toggle_subtask'),
 
     path('api/tasks/', views.api_tasks, name='api_tasks'),
     path('api/generate-subtasks/', views.api_generate_subtasks, name='api_generate_subtasks'),

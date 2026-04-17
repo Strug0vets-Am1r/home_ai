@@ -1,99 +1,139 @@
 {% extends 'core/base.html' %}
 
+
 {% block title %}Главная{% endblock %}
+
 
 {% block content %}
 <div class="hero">
     <div>
-        <div class="eyebrow">Домашний центр управления</div>
-        <h1 class="hero__title">Мои задачи</h1>
+        <div class="eyebrow">Задачи</div>
+        <h1 class="hero__title">Домашние дела под контролем</h1>
     </div>
     <p class="hero__meta">
-        Управляй рутиной, создавай новые задачи и генерируй подзадачи без лишнего шума.
+        Создавай задачи, разбивай их на подзадачи через AI и отмечай выполнение по мере прогресса.
     </p>
 </div>
 
-<div class="panel">
+
+<div class="panel panel--glass">
     <div class="panel__head">
-        <div class="section-title" style="margin:0;">
-            <h2>Активные задачи</h2>
+        <div class="section-title" style="margin: 0;">
+            <h2 style="margin: 0;">Актуальные задачи</h2>
             <a href="{% url 'task_create' %}" class="button button--primary">+ Новая задача</a>
         </div>
     </div>
+
+
     <div class="panel__body">
         <div id="subtasks-alert-container"></div>
+
 
         {% if tasks %}
             <div class="stack">
                 {% for task in tasks %}
+                    {% with pending_count=task.subtasks.all|length %}
                     <details class="task-card">
                         <summary class="task-card__summary">
                             <div class="task-card__title">
                                 <strong>{{ task.title }}</strong>
-                                {% if task.subtasks.all %}
-                                    <span class="badge badge--muted">{{ task.subtasks.all|length }} подзадач</span>
+                                {% if pending_count > 0 %}
+                                    <span class="badge badge--muted">Осталось: {{ pending_count }}</span>
                                 {% endif %}
                             </div>
                             <div class="task-card__time">{{ task.due_date|date:"d.m.Y H:i" }}</div>
                         </summary>
+
 
                         <div class="task-card__body">
                             {% if task.description %}
                                 <p class="task-card__text">{{ task.description }}</p>
                             {% endif %}
 
+
                             {% if task.subtasks.all %}
                                 <div class="subtasks">
                                     {% for subtask in task.subtasks.all %}
-                                        <div class="subtask">
-                                            <span>{% if subtask.is_completed %}<s>{{ subtask.title }}</s>{% else %}{{ subtask.title }}{% endif %}</span>
-                                            {% if subtask.is_completed %}
-                                                <span class="badge badge--success">Готово</span>
-                                            {% endif %}
+                                        <div
+                                            class="subtask subtask--checkable {% if subtask.is_completed %}is-completed{% endif %}"
+                                            data-subtask-row
+                                            data-subtask-id="{{ subtask.id }}"
+                                            data-parent-task-id="{{ task.id }}"
+                                        >
+                                            <div class="subtask__left">
+                                                <input
+                                                    type="checkbox"
+                                                    class="subtask-checkbox"
+                                                    data-subtask-id="{{ subtask.id }}"
+                                                    data-parent-task-id="{{ task.id }}"
+                                                    {% if subtask.is_completed %}checked{% endif %}
+                                                >
+                                                <span class="subtask__text" data-subtask-text>
+                                                    {{ subtask.title }}
+                                                </span>
+                                            </div>
+
+
+                                            <span
+                                                class="badge {% if subtask.is_completed %}badge--success{% else %}badge--muted{% endif %}"
+                                                data-subtask-badge
+                                            >
+                                                {% if subtask.is_completed %}Выполнено{% else %}Не выполнено{% endif %}
+                                            </span>
                                         </div>
                                     {% endfor %}
                                 </div>
                             {% endif %}
 
+
                             <div style="display:flex; flex-wrap:wrap; gap:10px;">
-                                <a href="{% url 'complete_task' task.id %}" class="button button--success button--small">✓ Выполнить</a>
-                                <a href="{% url 'task_edit' task.id %}" class="button button--secondary button--small">✏️ Изменить</a>
-                                <a href="{% url 'task_delete' task.id %}" class="button button--danger button--small">🗑️ Удалить</a>
+                                <a href="{% url 'complete_task' task.id %}" class="button button--success button--small">Завершить задачу</a>
+                                <a href="{% url 'task_edit' task.id %}" class="button button--secondary button--small">Редактировать</a>
                                 <button
                                     type="button"
                                     class="button button--ghost button--small js-generate-subtasks"
                                     data-task-id="{{ task.id }}"
                                     data-task-title="{{ task.title|escape }}"
                                 >
-                                    🤖 Подзадачи
+                                    Сгенерировать подзадачи
                                 </button>
+                                <a href="{% url 'task_delete' task.id %}" class="button button--danger button--small">Удалить</a>
                             </div>
                         </div>
                     </details>
+                    {% endwith %}
                 {% endfor %}
             </div>
         {% else %}
-            <div class="panel" style="margin-top: 18px;">
+            <div class="panel panel--glass" style="margin-top: 18px;">
                 <div class="panel__body">
-                    <p class="muted" style="margin:0 0 12px;">У вас нет активных задач.</p>
-                    <a href="{% url 'task_create' %}" class="button button--primary">Создать задачу</a>
+                    <p class="muted" style="margin: 0 0 12px;">Пока нет активных задач.</p>
+                    <a href="{% url 'task_create' %}" class="button button--primary">Создать первую задачу</a>
                 </div>
             </div>
         {% endif %}
     </div>
 </div>
 
+
 <div class="section-title">
-    <h2>Выполненные задачи</h2>
+    <h2 style="margin: 0;">Выполненные задачи</h2>
     {% if completed_tasks %}
-        <form method="post" action="{% url 'clear_completed_tasks' %}">
+        <form method="post" action="{% url 'clear_completed_tasks' %}" id="clear-completed-form">
             {% csrf_token %}
-            <button type="submit" class="button button--danger button--small">Очистить выполненные</button>
+            <button
+                type="button"
+                class="button button--danger button--small"
+                id="open-clear-completed-modal"
+            >
+                Очистить выполненные
+            </button>
         </form>
     {% endif %}
 </div>
 
-<div class="panel">
+
+<div class="panel panel--glass">
     <div class="panel__body">
         {% if completed_tasks %}
             <div class="stack">
@@ -107,36 +147,189 @@
                             <div class="task-card__time">{{ task.due_date|date:"d.m.Y H:i" }}</div>
                         </summary>
 
+
                         <div class="task-card__body">
                             {% if task.description %}
                                 <p class="task-card__text">{{ task.description }}</p>
                             {% endif %}
 
+
                             {% if task.subtasks.all %}
                                 <div class="subtasks">
                                     {% for subtask in task.subtasks.all %}
-                                        <div class="subtask">
-                                            <span>{% if subtask.is_completed %}<s>{{ subtask.title }}</s>{% else %}{{ subtask.title }}{% endif %}</span>
-                                            {% if subtask.is_completed %}
-                                                <span class="badge badge--success">Готово</span>
-                                            {% endif %}
+                                        <div
+                                            class="subtask subtask--checkable {% if subtask.is_completed %}is-completed{% endif %}"
+                                            data-subtask-row
+                                            data-subtask-id="{{ subtask.id }}"
+                                            data-parent-task-id="{{ task.id }}"
+                                        >
+                                            <div class="subtask__left">
+                                                <input
+                                                    type="checkbox"
+                                                    class="subtask-checkbox"
+                                                    data-subtask-id="{{ subtask.id }}"
+                                                    data-parent-task-id="{{ task.id }}"
+                                                    {% if subtask.is_completed %}checked{% endif %}
+                                                >
+                                                <span class="subtask__text" data-subtask-text>
+                                                    {{ subtask.title }}
+                                                </span>
+                                            </div>
+
+
+                                            <span
+                                                class="badge {% if subtask.is_completed %}badge--success{% else %}badge--muted{% endif %}"
+                                                data-subtask-badge
+                                            >
+                                                {% if subtask.is_completed %}Выполнено{% else %}Не выполнено{% endif %}
+                                            </span>
                                         </div>
                                     {% endfor %}
                                 </div>
                             {% endif %}
 
+
                             <div style="display:flex; flex-wrap:wrap; gap:10px;">
-                                <a href="{% url 'task_delete' task.id %}" class="button button--danger button--small">🗑️ Удалить</a>
+                                <a href="{% url 'task_delete' task.id %}" class="button button--danger button--small">Удалить</a>
                             </div>
                         </div>
                     </details>
                 {% endfor %}
             </div>
         {% else %}
-            <p class="muted" style="margin:0;">Выполненных задач пока нет.</p>
+            <p class="muted" style="margin: 0;">Пока нет выполненных задач.</p>
         {% endif %}
     </div>
 </div>
+
+
+<div
+    class="modal-backdrop"
+    id="clear-completed-modal"
+    aria-hidden="true"
+>
+    <div
+        class="modal-dialog panel panel--glass"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="clear-completed-modal-title"
+        aria-describedby="clear-completed-modal-description"
+    >
+        <div class="panel__body">
+            <div class="stack" style="gap: 16px;">
+                <div class="badge badge--muted" style="width: fit-content;">Подтверждение</div>
+
+                <div>
+                    <h3 id="clear-completed-modal-title" style="margin: 0 0 10px;">Очистить корзину?</h3>
+                    <p id="clear-completed-modal-description" class="muted" style="margin: 0;">
+                        Все выполненные задачи будут удалены без возможности восстановления.
+                    </p>
+                </div>
+
+                <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end;">
+                    <button
+                        type="button"
+                        class="button button--secondary button--small"
+                        id="cancel-clear-completed-modal"
+                    >
+                        Отмена
+                    </button>
+                    <button
+                        type="button"
+                        class="button button--danger button--small"
+                        id="confirm-clear-completed-modal"
+                    >
+                        Да, очистить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+    .subtask--checkable {
+        cursor: default;
+    }
+
+
+    .subtask__left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+
+    .subtask__text {
+        min-width: 0;
+        word-break: break-word;
+        transition: opacity 0.18s ease, color 0.18s ease;
+    }
+
+
+    .subtask-checkbox {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        accent-color: var(--primary);
+        cursor: pointer;
+        flex: 0 0 auto;
+    }
+
+
+    .subtask.is-completed .subtask__text {
+        text-decoration: line-through;
+        opacity: 0.72;
+    }
+
+
+    .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(9, 13, 20, 0.48);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.18s ease, visibility 0.18s ease;
+        z-index: 200;
+    }
+
+
+    .modal-backdrop.is-open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+
+    .modal-dialog {
+        width: min(100%, 520px);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+
+
+    @media (max-width: 640px) {
+        .modal-backdrop {
+            align-items: flex-end;
+            padding: 12px;
+        }
+
+
+        .modal-dialog {
+            width: 100%;
+        }
+    }
+</style>
+
 
 <script>
     function getCookie(name) {
@@ -154,6 +347,7 @@
         return cookieValue;
     }
 
+
     function showSubtasksAlert(message, type) {
         const container = document.getElementById('subtasks-alert-container');
         const alert = document.createElement('div');
@@ -161,29 +355,97 @@
         alert.setAttribute('role', 'alert');
         alert.innerHTML = `
             ${message}
-            <button type="button" class="alert__close" aria-label="Закрыть уведомление">×</button>
+            <button type="button" class="alertclose" aria-label="Закрыть">×</button>
         `;
 
-        alert.querySelector('.alert__close').addEventListener('click', function () {
-            alert.remove();
-        });
+
+        const closeBtn = alert.querySelector('.alertclose');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function () {
+                alert.remove();
+            });
+        }
+
 
         container.appendChild(alert);
 
+
         setTimeout(function () {
-            if (alert.isConnected) alert.remove();
+            if (alert.isConnected) {
+                alert.remove();
+            }
         }, 4000);
     }
+
+
+    function updateSubtaskRow(row, isCompleted) {
+        const badge = row.querySelector('[data-subtask-badge]');
+        const text = row.querySelector('[data-subtask-text]');
+
+
+        row.classList.toggle('is-completed', isCompleted);
+
+
+        if (badge) {
+            badge.classList.remove('badge--success', 'badge--muted');
+            badge.classList.add(isCompleted ? 'badge--success' : 'badge--muted');
+            badge.textContent = isCompleted ? 'Выполнено' : 'Не выполнено';
+        }
+
+
+        if (text) {
+            text.style.textDecoration = isCompleted ? 'line-through' : 'none';
+            text.style.opacity = isCompleted ? '0.72' : '1';
+        }
+    }
+
+
+    function toggleSubtask(checkbox) {
+        const subtaskId = checkbox.dataset.subtaskId;
+        const row = document.querySelector(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
+        const newState = checkbox.checked;
+
+
+        checkbox.disabled = true;
+
+
+        fetch(`/subtask/${subtaskId}/toggle/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                checkbox.checked = data.is_completed;
+                updateSubtaskRow(row, data.is_completed);
+            } else {
+                checkbox.checked = !newState;
+                showSubtasksAlert(data.message || 'Не удалось обновить статус подзадачи.', 'danger');
+            }
+        })
+        .catch(() => {
+            checkbox.checked = !newState;
+            showSubtasksAlert('Ошибка при обновлении подзадачи.', 'danger');
+        })
+        .finally(() => {
+            checkbox.disabled = false;
+        });
+    }
+
 
     function generateSubtasks(button) {
         const taskId = button.dataset.taskId;
         const taskTitle = button.dataset.taskTitle;
         const oldText = button.innerHTML;
 
-        button.disabled = true;
-        button.innerHTML = '⏳ Генерация...';
 
-        fetch("{% url 'api_generate_subtasks' %}", {
+        button.disabled = true;
+        button.innerHTML = 'Генерация...';
+
+
+        fetch('{% url "api_generate_subtasks" %}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -197,16 +459,13 @@
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                showSubtasksAlert('Генерация подзадач завершена!', 'success');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                showSubtasksAlert('Подзадачи успешно сгенерированы! Обнови страницу, чтобы увидеть их.', 'success');
             } else {
-                showSubtasksAlert(data.message || 'Ошибка при генерации подзадач.', 'danger');
+                showSubtasksAlert(data.message || 'Ошибка генерации подзадач.', 'danger');
             }
         })
         .catch(() => {
-            showSubtasksAlert('Ошибка при генерации подзадач.', 'danger');
+            showSubtasksAlert('Произошла ошибка при запросе к серверу.', 'danger');
         })
         .finally(() => {
             button.disabled = false;
@@ -214,12 +473,108 @@
         });
     }
 
+
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.js-generate-subtasks').forEach(function (button) {
             button.addEventListener('click', function (event) {
+                event.preventDefault();
                 event.stopPropagation();
                 generateSubtasks(button);
             });
+        });
+
+
+        document.querySelectorAll('.subtask-checkbox').forEach(function (checkbox) {
+            checkbox.addEventListener('click', function (event) {
+                event.stopPropagation();
+            });
+
+
+            checkbox.addEventListener('change', function (event) {
+                event.stopPropagation();
+                toggleSubtask(checkbox);
+            });
+        });
+
+
+        document.querySelectorAll('[data-subtask-row]').forEach(function (row) {
+            row.addEventListener('click', function (event) {
+                event.stopPropagation();
+            });
+        });
+
+
+        const clearCompletedForm = document.getElementById('clear-completed-form');
+        const clearCompletedModal = document.getElementById('clear-completed-modal');
+        const openClearCompletedModalButton = document.getElementById('open-clear-completed-modal');
+        const cancelClearCompletedModalButton = document.getElementById('cancel-clear-completed-modal');
+        const confirmClearCompletedModalButton = document.getElementById('confirm-clear-completed-modal');
+
+
+        function openClearCompletedModal() {
+            if (!clearCompletedModal) {
+                return;
+            }
+
+            clearCompletedModal.classList.add('is-open');
+            clearCompletedModal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+
+            if (confirmClearCompletedModalButton) {
+                confirmClearCompletedModalButton.focus();
+            }
+        }
+
+
+        function closeClearCompletedModal() {
+            if (!clearCompletedModal) {
+                return;
+            }
+
+            clearCompletedModal.classList.remove('is-open');
+            clearCompletedModal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+
+            if (openClearCompletedModalButton) {
+                openClearCompletedModalButton.focus();
+            }
+        }
+
+
+        if (openClearCompletedModalButton) {
+            openClearCompletedModalButton.addEventListener('click', function () {
+                openClearCompletedModal();
+            });
+        }
+
+
+        if (cancelClearCompletedModalButton) {
+            cancelClearCompletedModalButton.addEventListener('click', function () {
+                closeClearCompletedModal();
+            });
+        }
+
+
+        if (confirmClearCompletedModalButton && clearCompletedForm) {
+            confirmClearCompletedModalButton.addEventListener('click', function () {
+                clearCompletedForm.submit();
+            });
+        }
+
+
+        if (clearCompletedModal) {
+            clearCompletedModal.addEventListener('click', function (event) {
+                if (event.target === clearCompletedModal) {
+                    closeClearCompletedModal();
+                }
+            });
+        }
+
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && clearCompletedModal && clearCompletedModal.classList.contains('is-open')) {
+                closeClearCompletedModal();
+            }
         });
     });
 </script>

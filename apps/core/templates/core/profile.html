@@ -1,0 +1,234 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Профиль{% endblock %}
+
+{% block content %}
+<div class="hero profile-hero">
+    <div>
+        <div class="eyebrow">Аккаунт</div>
+        <h1 class="hero__title">Профиль</h1>
+    </div>
+    <p class="hero__meta">Здесь можно изменить личные данные и параметры дома.</p>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert--{{ message.tags }}" role="alert">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<div class="panel panel--glass profile-panel">
+    <div class="panel__body">
+        <form method="post" class="profile-form">
+            {% csrf_token %}
+
+            <div class="profile-section">
+                <div class="profile-section__title">Личные данные</div>
+                <div class="profile-avatar-row">
+                    <div class="profile-avatar">
+                        {{ request.user.username|first|upper }}
+                    </div>
+                    <div class="profile-username">{{ request.user.username }}</div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="field">
+                        <label class="field__label" for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}<div class="muted">{{ form.first_name.errors }}</div>{% endif %}
+                    </div>
+                    <div class="field">
+                        <label class="field__label" for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}<div class="muted">{{ form.last_name.errors }}</div>{% endif %}
+                    </div>
+                    <div class="field">
+                        <label class="field__label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<div class="muted">{{ form.email.errors }}</div>{% endif %}
+                    </div>
+                    <div class="field">
+                        <label class="field__label" for="{{ form.gender.id_for_label }}">{{ form.gender.label }}</label>
+                        <div class="profile-select-wrap">
+                            {{ form.gender }}
+                        </div>
+                        {% if form.gender.errors %}<div class="muted">{{ form.gender.errors }}</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-divider"></div>
+
+            <div class="profile-section">
+                <div class="profile-section__title">Параметры дома</div>
+                <div class="form-grid">
+                    <div class="field">
+                        <label class="field__label" for="{{ form.room_count.id_for_label }}">{{ form.room_count.label }}</label>
+                        {{ form.room_count }}
+                        {% if form.room_count.errors %}<div class="muted">{{ form.room_count.errors }}</div>{% endif %}
+                    </div>
+                    <div class="field">
+                        <label class="field__label" for="{{ form.cleaning_frequency.id_for_label }}">{{ form.cleaning_frequency.label }}</label>
+                        <div class="profile-select-wrap">
+                            {{ form.cleaning_frequency }}
+                        </div>
+                        {% if form.cleaning_frequency.errors %}<div class="muted">{{ form.cleaning_frequency.errors }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <div class="profile-checkboxes">
+                    <label class="profile-checkbox-label">
+                        {{ form.has_dishwasher }}
+                        <span>{{ form.has_dishwasher.label }}</span>
+                    </label>
+                    <label class="profile-checkbox-label">
+                        {{ form.has_robot_vacuum }}
+                        <span>{{ form.has_robot_vacuum.label }}</span>
+                    </label>
+                    <label class="profile-checkbox-label">
+                        {{ form.has_plants }}
+                        <span>{{ form.has_plants.label }}</span>
+                    </label>
+                    <label class="profile-checkbox-label">
+                        {{ form.has_pets }}
+                        <span>{{ form.has_pets.label }}</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="profile-actions">
+                <button type="submit" class="button button--success">Сохранить изменения</button>
+                <a href="{% url 'home' %}" class="button button--secondary">Отмена</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .profile-hero {
+        margin-bottom: 12px;
+    }
+
+    .profile-panel {
+        overflow: hidden;
+    }
+
+    .profile-section {
+        display: grid;
+        gap: 16px;
+    }
+
+    .profile-section__title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+    }
+
+    .profile-avatar-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .profile-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 999px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 1.4rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .profile-username {
+        font-weight: 600;
+        font-size: 1.05rem;
+        color: var(--text);
+    }
+
+    .profile-divider {
+        height: 1px;
+        background: var(--border);
+        margin: 4px 0;
+    }
+
+    .profile-checkboxes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .profile-checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface-2);
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: 500;
+        transition: background 180ms, border-color 180ms;
+        user-select: none;
+    }
+
+    .profile-checkbox-label:hover {
+        background: var(--surface-3);
+        border-color: var(--border-strong, #b8c4db);
+    }
+
+    .profile-checkbox-label input[type="checkbox"] {
+        width: 17px;
+        height: 17px;
+        accent-color: var(--primary);
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .profile-select-wrap {
+        position: relative;
+    }
+
+    .profile-select-wrap::after {
+        content: "▾";
+        position: absolute;
+        top: 50%;
+        right: 16px;
+        transform: translateY(-52%);
+        color: var(--muted);
+        font-size: 12px;
+        pointer-events: none;
+    }
+
+    .profile-select-wrap .select {
+        border-radius: 16px;
+        padding: 14px 40px 14px 16px;
+        min-height: unset;
+    }
+
+    .profile-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding-top: 4px;
+    }
+
+    @media (max-width: 640px) {
+        .profile-checkboxes {
+            flex-direction: column;
+        }
+
+        .profile-actions .button {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}

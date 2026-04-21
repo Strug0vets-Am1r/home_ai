@@ -106,17 +106,22 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+_REDIS_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+
+CELERY_BROKER_URL = _REDIS_URL
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', _REDIS_URL)
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+
+_REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+_REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],
+            'hosts': [(_REDIS_HOST, _REDIS_PORT)],
         },
     },
 }

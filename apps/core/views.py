@@ -4,11 +4,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.conf import settings
 
-from .models import User, Task, TaskHistory
-from .forms import TaskForm
+from .models import User, Task, TaskHistory, Category
+from .forms import TaskForm, ProfileForm, CategoryForm
 
 import datetime
 import json
@@ -16,26 +16,46 @@ import requests
 import traceback
 
 
+def _redirect_back(request, fallback='home'):
+    host = request.get_host()
+    next_url = request.POST.get('next') or request.META.get('HTTP_REFERER', '')
+    if next_url and host in next_url:
+        return redirect(next_url)
+    return redirect(fallback)
+
+
 def register(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
+        username = request.POST.get('username', '').strip()
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        gender = request.POST.get('gender', '')
         password = request.POST.get('password')
         password2 = request.POST.get('password2')
 
         if password != password2:
             messages.error(request, 'Пароли не совпадают')
-            return render(request, 'core/register.html')
+            return render(request, 'core/register.html', {'post': request.POST})
 
         if User.objects.filter(username=username).exists():
             messages.error(request, 'Пользователь с таким именем уже существует')
-            return render(request, 'core/register.html')
+            return render(request, 'core/register.html', {'post': request.POST})
 
         user = User.objects.create_user(
             username=username,
             email=email,
-            password=password
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            gender=gender or None,
         )
+
+        Category.objects.bulk_create([
+            Category(user=user, name='Уборка', color='#10b981'),
+            Category(user=user, name='Покупки', color='#f59e0b'),
+            Category(user=user, name='Личное', color='#6366f1'),
+        ])
 
         login(request, user)
         return redirect('survey')
@@ -156,16 +176,18 @@ def generate_initial_tasks(user):
 
 @login_required
 def home(request):
-    active_tasks = Task.objects.filter(
+    active_tasks = list(Task.objects.filter(
         user=request.user,
         is_completed=False,
         parent_task__isnull=True
+    ).annotate(
+        pending_subtask_count=Count('subtasks', filter=Q(subtasks__is_completed=False))
     ).prefetch_related(
         Prefetch(
             'subtasks',
             queryset=Task.objects.filter(user=request.user).order_by('due_date', 'id')
         )
-    ).order_by('due_date')
+    ).order_by('due_date'))
 
     completed_tasks = Task.objects.filter(
         user=request.user,
@@ -178,9 +200,22 @@ def home(request):
         )
     ).order_by('-updated_at', '-due_date')
 
+    active_count = len(active_tasks)
+    completed_count = completed_tasks.count()
+    active_subtask_count = sum(t.pending_subtask_count for t in active_tasks)
+    total_subtask_count = Task.objects.filter(user=request.user, parent_task__isnull=False).count()
+
+    categories = Category.objects.filter(user=request.user)
+
     return render(request, 'core/home.html', {
         'tasks': active_tasks,
         'completed_tasks': completed_tasks,
+        'total_tasks': active_count + completed_count,
+        'active_count': active_count,
+        'completed_count': completed_count,
+        'active_subtask_count': active_subtask_count,
+        'total_subtask_count': total_subtask_count,
+        'categories': categories,
     })
 
 
@@ -199,7 +234,7 @@ def complete_task(request, task_id):
         )
     except Task.DoesNotExist:
         messages.error(request, 'Задача не найдена.')
-        return redirect('home')
+        return redirect('home')  # fallback — задача не найдена
 
     task.is_completed = True
     task.save(update_fields=['is_completed', 'updated_at'])
@@ -210,7 +245,7 @@ def complete_task(request, task_id):
     )
 
     messages.success(request, f'Задача "{task.title}" выполнена!')
-    return redirect('home')
+    return _redirect_back(request)
 
 
 @login_required
@@ -230,7 +265,7 @@ def restore_task(request, task_id):
     task.save(update_fields=['is_completed', 'updated_at'])
 
     messages.success(request, f'Задача "{task.title}" снова активна!')
-    return redirect('home')
+    return _redirect_back(request)
 
 
 @login_required
@@ -248,10 +283,17 @@ def toggle_subtask(request, subtask_id):
     subtask.is_completed = not subtask.is_completed
     subtask.save(update_fields=['is_completed', 'updated_at'])
 
+    pending_count = Task.objects.filter(
+        parent_task_id=subtask.parent_task_id,
+        is_completed=False
+    ).count()
+
     return JsonResponse({
         'status': 'success',
         'subtask_id': subtask.id,
+        'parent_task_id': subtask.parent_task_id,
         'is_completed': subtask.is_completed,
+        'pending_count': pending_count,
         'message': 'Статус подзадачи обновлён.'
     })
 
@@ -269,7 +311,7 @@ def clear_completed_tasks(request):
         else:
             messages.info(request, 'Нет выполненных задач для очистки.')
 
-    return redirect('home')
+    return _redirect_back(request)
 
 
 def _normalize_subtask_title(value):
@@ -358,16 +400,35 @@ def _extract_yandex_text(response_data):
     return text.strip()
 
 
-def _generate_subtasks_with_yandex(task_title, task_description=''):
+GENDER_LABELS = {
+    'male': 'мужской',
+    'female': 'женский',
+    'other': 'другой',
+}
+
+
+def _generate_subtasks_with_yandex(task_title, task_description='', user_gender=None):
     headers = _build_yandex_headers()
     model_uri = _build_model_uri()
+
+    gender_line = ''
+    if user_gender == 'male':
+        gender_line = (
+            'Пользователь — мужчина. '
+            'СТРОГО ЗАПРЕЩЕНО включать подзадачи, связанные с макияжем, косметикой, '
+            'маникюром, педикюром, укладкой волос феном или утюжком, эпиляцией, '
+            'нанесением крема-тонального средства, помады или любой декоративной косметики. '
+            'Если задача не предполагает таких шагов для мужчины — просто не включай их.\n'
+        )
+    elif user_gender == 'female':
+        gender_line = 'Пользователь — женщина. Учитывай это при генерации подзадач.\n'
 
     prompt = f"""
 Ты — AI-помощник по планированию домашних задач.
 
 Сгенерируй подзадачи для задачи пользователя.
 Верни только конкретные, практические, короткие шаги на русском языке.
-
+{gender_line}
 Требования:
 - Обычно 4-8 подзадач.
 - Максимум 10 подзадач.
@@ -464,7 +525,7 @@ def _generate_subtasks_with_yandex(task_title, task_description=''):
 @login_required
 def task_create(request):
     if request.method == 'POST':
-        form = TaskForm(request.POST)
+        form = TaskForm(request.POST, user=request.user)
         if form.is_valid():
             task = form.save(commit=False)
             task.user = request.user
@@ -483,13 +544,14 @@ def task_create(request):
                 )
 
             messages.success(request, f'Задача "{task.title}" создана!')
-            return redirect('home')
+            return _redirect_back(request)
     else:
-        form = TaskForm()
+        form = TaskForm(user=request.user)
 
     return render(request, 'core/task_form.html', {
         'form': form,
-        'title': 'Создать задачу'
+        'title': 'Создать задачу',
+        'next': request.META.get('HTTP_REFERER', ''),
     })
 
 
@@ -498,7 +560,7 @@ def task_edit(request, task_id):
     task = get_object_or_404(Task, id=task_id, user=request.user)
 
     if request.method == 'POST':
-        form = TaskForm(request.POST, instance=task)
+        form = TaskForm(request.POST, instance=task, user=request.user)
         if form.is_valid():
             task = form.save()
 
@@ -521,14 +583,15 @@ def task_edit(request, task_id):
                 )
 
             messages.success(request, f'Задача "{task.title}" обновлена!')
-            return redirect('home')
+            return _redirect_back(request)
     else:
-        form = TaskForm(instance=task)
+        form = TaskForm(instance=task, user=request.user)
 
     return render(request, 'core/task_form.html', {
         'form': form,
         'title': 'Редактировать задачу',
-        'task': task
+        'task': task,
+        'next': request.META.get('HTTP_REFERER', ''),
     })
 
 
@@ -540,31 +603,37 @@ def task_delete(request, task_id):
     if request.method == 'POST':
         task.delete()
         messages.success(request, f'Задача "{title}" удалена!')
-        return redirect('home')
+        return _redirect_back(request)
 
     return render(request, 'core/task_confirm_delete.html', {'task': task})
 
 
 @login_required
 def api_tasks(request):
-    tasks = Task.objects.filter(user=request.user, parent_task__isnull=True)
+    tasks = Task.objects.filter(
+        user=request.user,
+        parent_task__isnull=True,
+    ).select_related('category').annotate(
+        pending_subtask_count=Count('subtasks', filter=Q(subtasks__is_completed=False))
+    )
 
     events = []
     for task in tasks:
-        event = {
+        local_due = timezone.localtime(task.due_date)
+        events.append({
             'id': task.id,
             'title': task.title,
-            'start': task.due_date.isoformat(),
-            'allDay': False,
-            'backgroundColor': '#6c757d' if task.is_completed else '#0d6efd',
-            'borderColor': '#6c757d' if task.is_completed else '#0d6efd',
-            'textColor': '#ffffff',
-        }
-
-        if task.description:
-            event['description'] = task.description
-
-        events.append(event)
+            'description': task.description or '',
+            'date': local_due.strftime('%Y-%m-%d'),
+            'time': local_due.strftime('%H:%M'),
+            'is_completed': task.is_completed,
+            'pending_subtasks': task.pending_subtask_count,
+            'category_name': task.category.name if task.category else None,
+            'category_color': task.category.color if task.category else None,
+            'edit_url': f'/task/{task.id}/edit/',
+            'complete_url': f'/task/{task.id}/complete/',
+            'delete_url': f'/task/{task.id}/delete/',
+        })
 
     return JsonResponse(events, safe=False)
 
@@ -577,7 +646,7 @@ def generate_subtasks_view(request, task_id):
     task = get_object_or_404(Task, id=task_id, user=request.user)
 
     try:
-        subtasks = _generate_subtasks_with_yandex(task.title, task.description)
+        subtasks = _generate_subtasks_with_yandex(task.title, task.description, request.user.gender)
 
         created_count = 0
         existing_titles = {
@@ -636,7 +705,7 @@ def task_create_with_ai(request):
         )
 
         try:
-            subtasks = _generate_subtasks_with_yandex(title, description)
+            subtasks = _generate_subtasks_with_yandex(title, description, request.user.gender)
 
             for subtask_title in subtasks:
                 Task.objects.create(
@@ -657,7 +726,7 @@ def task_create_with_ai(request):
                 f'Задача "{title}" создана, но подзадачи не сгенерировались: {str(e)}'
             )
 
-        return redirect('home')
+        return _redirect_back(request)
 
     return render(request, 'core/task_create_with_ai.html')
 
@@ -680,7 +749,7 @@ def api_generate_subtasks(request):
         return JsonResponse({'status': 'error', 'message': 'task_title is required'}, status=400)
 
     try:
-        subtasks = _generate_subtasks_with_yandex(task_title, task_description)
+        subtasks = _generate_subtasks_with_yandex(task_title, task_description, request.user.gender)
 
         if task_id:
             try:
@@ -733,3 +802,49 @@ def api_generate_subtasks(request):
             'message': str(e),
             'trace': traceback.format_exc()
         }, status=500)
+
+
+@login_required
+def profile(request):
+    if request.method == 'POST':
+        form = ProfileForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Профиль успешно обновлён.')
+            return redirect('profile')
+    else:
+        form = ProfileForm(instance=request.user)
+    return render(request, 'core/profile.html', {'form': form})
+
+
+@login_required
+def categories(request):
+    if request.method == 'POST':
+        form = CategoryForm(request.POST)
+        if form.is_valid():
+            category = form.save(commit=False)
+            category.user = request.user
+            if Category.objects.filter(user=request.user, name=category.name).exists():
+                messages.error(request, f'Категория «{category.name}» уже существует.')
+            else:
+                category.save()
+                messages.success(request, f'Категория «{category.name}» создана.')
+                return redirect('categories')
+    else:
+        form = CategoryForm()
+
+    user_categories = Category.objects.filter(user=request.user)
+    return render(request, 'core/categories.html', {
+        'form': form,
+        'categories': user_categories,
+    })
+
+
+@login_required
+def category_delete(request, category_id):
+    if request.method == 'POST':
+        category = get_object_or_404(Category, id=category_id, user=request.user)
+        name = category.name
+        category.delete()
+        messages.success(request, f'Категория «{name}» удалена.')
+    return redirect('categories')

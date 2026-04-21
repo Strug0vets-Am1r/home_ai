@@ -1,0 +1,148 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Категории{% endblock %}
+
+{% block content %}
+<div class="hero profile-hero">
+    <div>
+        <div class="eyebrow">Организация</div>
+        <h1 class="hero__title">Категории</h1>
+    </div>
+    <p class="hero__meta">Создавай и удаляй категории для группировки задач.</p>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert--{{ message.tags }}" role="alert">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<div class="categories-layout">
+    <div class="panel panel--glass">
+        <div class="panel__body">
+            <div class="categories-section-title">Новая категория</div>
+            <form method="post" class="category-create-form">
+                {% csrf_token %}
+                <div class="category-create-row">
+                    <div class="field" style="flex: 1;">
+                        <label class="field__label" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="muted">{{ form.name.errors }}</div>{% endif %}
+                    </div>
+                    <div class="field category-color-field">
+                        <label class="field__label" for="{{ form.color.id_for_label }}">{{ form.color.label }}</label>
+                        {{ form.color }}
+                        {% if form.color.errors %}<div class="muted">{{ form.color.errors }}</div>{% endif %}
+                    </div>
+                </div>
+                <button type="submit" class="button button--success" style="margin-top: 4px;">Создать</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="panel panel--glass">
+        <div class="panel__body">
+            <div class="categories-section-title">Мои категории</div>
+            {% if categories %}
+                <div class="category-list">
+                    {% for cat in categories %}
+                        <div class="category-item">
+                            <div class="category-item__left">
+                                <span class="category-dot" style="background: {{ cat.color }};"></span>
+                                <span class="category-item__name">{{ cat.name }}</span>
+                                <span class="badge badge--muted">{{ cat.tasks.count }} задач</span>
+                            </div>
+                            <form method="post" action="{% url 'category_delete' cat.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="button button--danger button--small">Удалить</button>
+                            </form>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="muted" style="margin: 0;">Пока нет категорий. Создай первую выше.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .profile-hero {
+        margin-bottom: 12px;
+    }
+
+    .categories-layout {
+        display: grid;
+        gap: 16px;
+    }
+
+    .categories-section-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 14px;
+    }
+
+    .category-create-row {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .category-color-field {
+        flex: 0 0 auto;
+    }
+
+    .category-color-input {
+        width: 52px;
+        height: 46px;
+        padding: 4px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface-2);
+        cursor: pointer;
+        display: block;
+    }
+
+    .category-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .category-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface-2);
+    }
+
+    .category-item__left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .category-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        flex-shrink: 0;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .category-item__name {
+        font-weight: 600;
+        font-size: 0.97rem;
+        min-width: 0;
+        word-break: break-word;
+    }
+</style>
+{% endblock %}

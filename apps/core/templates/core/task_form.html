@@ -17,6 +17,7 @@
     <div class="panel__body">
         <form method="post" class="form-grid task-form-grid" id="task-form">
             {% csrf_token %}
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 
             <div class="field">
                 <label class="field__label" for="{{ form.title.id_for_label }}">Название задачи</label>
@@ -85,6 +86,14 @@
             </div>
 
             <div class="field">
+                <label class="field__label" for="{{ form.category.id_for_label }}">Категория</label>
+                <div class="profile-select-wrap">
+                    {{ form.category }}
+                </div>
+                {% if form.category.errors %}<div class="muted">{{ form.category.errors }}</div>{% endif %}
+            </div>
+
+            <div class="field">
                 <label class="field__label" for="{{ form.due_date.id_for_label }}">Дата и время выполнения</label>
 
                 <div class="datetime-field-wrap">
@@ -92,7 +101,10 @@
                 </div>
 
                 {% if form.due_date.errors %}
-                    <div class="muted">{{ form.due_date.errors }}</div>
+                    <div class="field-error">
+                        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/></svg>
+                        {{ form.due_date.errors|join:", " }}
+                    </div>
                 {% endif %}
             </div>
 
@@ -244,6 +256,21 @@
         gap: 10px;
         flex-wrap: wrap;
         padding-top: 2px;
+    }
+
+    .field-error {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--danger);
+        font-size: 0.88rem;
+        font-weight: 500;
+    }
+
+    .field-error svg {
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
     }
 
     .datetime-field-wrap {
@@ -444,11 +471,12 @@
         box-shadow: inset 0 0 0 1px rgba(43, 108, 255, 0.18);
     }
 
-    .mini-calendar__day.is-selected {
-        background: var(--primary);
-        color: white;
-        border-color: var(--primary);
-        box-shadow: var(--shadow-sm);
+    .mini-calendar__day.is-selected,
+    html[data-theme="dark"] .mini-calendar__day.is-selected {
+        background: color-mix(in srgb, var(--success) 14%, var(--surface)) !important;
+        color: var(--success) !important;
+        border-color: color-mix(in srgb, var(--success) 24%, var(--border)) !important;
+        font-weight: 700;
     }
 
     .mini-datetime-time {
@@ -597,27 +625,29 @@
         }
 
         function showAlert(message, type) {
-            const alert = document.createElement('div');
-            alert.className = `alert alert--${type} auto-dismiss-alert`;
-            alert.setAttribute('role', 'alert');
-            alert.innerHTML = `
-                ${escapeHtml(message)}
-                <button type="button" class="alertclose" aria-label="Закрыть">×</button>
+            const area = document.getElementById('toast-area');
+            if (!area) return;
+
+            const icons = {
+                success: '<path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>',
+                danger:  '<path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/>',
+                warning: '<path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/>',
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `toast toast--${type}`;
+            toast.setAttribute('role', 'alert');
+            toast.style.cssText = 'position:relative;overflow:hidden;';
+            toast.innerHTML = `
+                <svg class="toast__icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">${icons[type] || icons.danger}</svg>
+                <span class="toast__body">${escapeHtml(message)}</span>
+                <button type="button" class="toast__close" aria-label="Закрыть">×</button>
+                <span class="toast__progress"></span>
             `;
 
-            const closeBtn = alert.querySelector('.alertclose');
-            closeBtn.addEventListener('click', function () {
-                alert.remove();
-            });
-
-            alertsContainer.innerHTML = '';
-            alertsContainer.appendChild(alert);
-
-            setTimeout(function () {
-                if (alert.isConnected) {
-                    alert.remove();
-                }
-            }, 4000);
+            toast.querySelector('.toast__close').addEventListener('click', function () { window.dismissToast(toast); });
+            area.appendChild(toast);
+            setTimeout(function () { if (toast.isConnected) window.dismissToast(toast); }, 4200);
         }
 
         function createSubtaskItem(value = '') {
@@ -1090,12 +1120,17 @@
 
         form.addEventListener('submit', function (event) {
             const parsed = parseDateValue(dueDateInput.value);
+            const minDate = getMinSelectableDate();
 
-            dueDateInput.min = formatDateValue(getMinSelectableDate());
+            dueDateInput.min = formatDateValue(minDate);
 
             if (!parsed || isInvalidPastDate(parsed)) {
                 event.preventDefault();
-                return;
+                dueDateInput.value = formatDateValue(minDate);
+                selectedDate = new Date(minDate);
+                draftDate = new Date(minDate);
+                showAlert('Дата выполнения не может быть в прошлом. Выбери актуальную дату.', 'warning');
+                dueDateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         });
 

@@ -4,48 +4,23 @@
 
 {% block content %}
 <div class="hero hero--dashboard">
-    <div class="hero__content">
-        <div class="eyebrow">Задачи</div>
-        <h1 class="hero__title">Домашние дела под контролем</h1>
+    <h1 class="hero__title">Мои задачи</h1>
+</div>
 
-        {% with total_tasks=tasks|length|add:completed_tasks|length %}
-        <p class="hero__meta">
-            У вас сейчас
-            {% if tasks or completed_tasks %}
-                {{ tasks|length|add:completed_tasks|length }}
-            {% else %}
-                0
-            {% endif %}
-            задач
-        </p>
-        {% endwith %}
+<div class="hero-stats">
+    <div class="hero-stat panel panel--glass">
+        <div class="hero-stat__label">Активные задачи</div>
+        <div class="hero-stat__value">{{ active_count }}</div>
     </div>
 
-    <div class="hero-stats">
-        <div class="hero-stat panel panel--glass">
-            <div class="hero-stat__label">Активные</div>
-            <div class="hero-stat__value">{{ tasks|length }}</div>
-        </div>
+    <div class="hero-stat panel panel--glass">
+        <div class="hero-stat__label">Оставшиеся подзадачи</div>
+        <div class="hero-stat__value">{{ active_subtask_count }}</div>
+    </div>
 
-        <div class="hero-stat panel panel--glass">
-            <div class="hero-stat__label">Выполненные</div>
-            <div class="hero-stat__value">{{ completed_tasks|length }}</div>
-        </div>
-
-        <div class="hero-stat panel panel--glass">
-            <div class="hero-stat__label">Всего подзадач</div>
-            <div class="hero-stat__value">
-                {% with total_subtasks=0 %}
-                    {% for task in tasks %}
-                        {% with total_subtasks=total_subtasks|add:task.subtasks.all|length %}{% endwith %}
-                    {% endfor %}
-                    {% for task in completed_tasks %}
-                        {% with total_subtasks=total_subtasks|add:task.subtasks.all|length %}{% endwith %}
-                    {% endfor %}
-                    {{ total_subtasks }}
-                {% endwith %}
-            </div>
-        </div>
+    <div class="hero-stat panel panel--glass">
+        <div class="hero-stat__label">Выполненные задачи</div>
+        <div class="hero-stat__value">{{ completed_count }}</div>
     </div>
 </div>
 
@@ -56,9 +31,9 @@
         <summary class="section-panel__summary">
             <div class="section-panel__title-wrap">
                 <h2 class="section-panel__title">Актуальные задачи</h2>
-                <p class="section-panel__meta">
+                <p class="section-panel__meta" id="active-section-meta">
                     {% if tasks %}
-                        {{ tasks|length }} активных задач
+                        {{ tasks|length }} активных задач · <span id="active-subtask-count">{{ active_subtask_count }}</span> незавершённых подзадач
                     {% else %}
                         Пока нет активных задач
                     {% endif %}
@@ -72,24 +47,59 @@
 
         <div class="section-panel__content">
             {% if tasks %}
-                <div class="task-list">
+                <div class="task-filters">
+                    <div class="task-filters__search-wrap">
+                        <svg class="task-filters__search-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clip-rule="evenodd"/></svg>
+                        <input
+                            type="search"
+                            id="task-search"
+                            class="task-filters__search"
+                            placeholder="Поиск по названию..."
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <select id="task-category-filter" class="task-filters__select">
+                        <option value="">Все категории</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <select id="task-sort" class="task-filters__select">
+                        <option value="date-asc">По дате ↑</option>
+                        <option value="date-desc">По дате ↓</option>
+                        <option value="title-asc">По названию A–Я</option>
+                        <option value="title-desc">По названию Я–А</option>
+                    </select>
+                </div>
+
+                <div class="task-list" id="active-task-list">
                     {% for task in tasks %}
-                        {% with pending_count=task.subtasks.all|length %}
                         <article
                             class="task-preview-card js-task-open"
                             role="button"
                             tabindex="0"
                             aria-label="Открыть задачу {{ task.title }}"
                             data-modal-target="task-modal-{{ task.id }}"
+                            data-title="{{ task.title|lower }}"
+                            data-category="{{ task.category.id|default:'' }}"
+                            data-due="{{ task.due_date|date:'U' }}"
                         >
                             <div class="task-preview-card__top">
                                 <div class="task-preview-card__title-wrap">
                                     <h3 class="task-preview-card__title">{{ task.title }}</h3>
 
-                                    {% if pending_count > 0 %}
-                                        <span class="badge badge--muted">Подзадач: {{ pending_count }}</span>
+                                    {% if task.category %}
+                                        <span class="badge task-category-badge" style="background: {{ task.category.color }}1a; color: {{ task.category.color }}; border-color: {{ task.category.color }}40;">
+                                            <span class="category-dot-sm" style="background: {{ task.category.color }};"></span>
+                                            {{ task.category.name }}
+                                        </span>
+                                    {% endif %}
+                                    {% if task.pending_subtask_count > 0 %}
+                                        <span class="badge badge--muted" data-task-pending-badge="{{ task.id }}">Подзадач: {{ task.pending_subtask_count }}</span>
                                     {% else %}
-                                        <span class="badge badge--success">Готово к выполнению</span>
+                                        <span class="badge badge--success" data-task-pending-badge="{{ task.id }}">Готово к выполнению</span>
                                     {% endif %}
                                 </div>
 
@@ -195,8 +205,12 @@
                                 </div>
                             </div>
                         </div>
-                        {% endwith %}
                     {% endfor %}
+                </div>
+                <div id="tasks-no-results" class="tasks-no-results" style="display:none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 15.803a7.5 7.5 0 0 0 10.607 0Z"/></svg>
+                    <p>Задачи не найдены</p>
+                    <button type="button" class="button button--ghost button--small" id="tasks-reset-filters">Сбросить фильтры</button>
                 </div>
             {% else %}
                 <div class="panel panel--glass" style="margin-top: 6px;">
@@ -413,29 +427,21 @@
 
 <style>
     .hero--dashboard {
-        display: grid;
-        grid-template-columns: minmax(0, 1.3fr) minmax(320px, 420px);
-        align-items: start;
-        gap: 20px;
-        margin-bottom: 24px;
-    }
-
-    .hero--dashboard .hero__content {
-        display: grid;
-        gap: 10px;
-    }
-
-    .hero--dashboard .hero__meta {
-        margin: 0;
+        margin-bottom: 16px;
     }
 
     .hero-stats {
-        display: grid;
+        display: flex;
         gap: 12px;
+        margin-bottom: 24px;
+        align-items: stretch;
     }
 
     .hero-stat {
+        flex: 1 1 0;
         padding: 18px 20px;
+        min-width: 0;
+        margin-top: 0 !important;
     }
 
     .hero-stat__label {
@@ -592,6 +598,20 @@
         font-weight: 600;
     }
 
+    .category-dot-sm {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        flex-shrink: 0;
+        display: inline-block;
+    }
+
+    .task-category-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
     .subtask--checkable {
         cursor: default;
     }
@@ -744,6 +764,101 @@
         color: var(--text);
     }
 
+    .task-filters {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+        padding: 14px 16px;
+        background: var(--surface-3);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+    }
+
+    .task-filters__search-wrap {
+        position: relative;
+        flex: 1 1 200px;
+        min-width: 0;
+    }
+
+    .task-filters__search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        color: var(--muted);
+        pointer-events: none;
+    }
+
+    .task-filters__search {
+        width: 100%;
+        padding: 8px 12px 8px 36px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-size: 0.9rem;
+        outline: none;
+        transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .task-filters__search:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+    }
+
+    .task-filters__select {
+        padding: 8px 32px 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-size: 0.9rem;
+        cursor: pointer;
+        outline: none;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2363708a'%3E%3Cpath fill-rule='evenodd' d='M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z' clip-rule='evenodd'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 16px;
+        transition: border-color var(--transition), box-shadow var(--transition);
+        flex-shrink: 0;
+    }
+
+    .task-filters__select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+    }
+
+    .tasks-no-results {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 40px 20px;
+        color: var(--muted);
+        text-align: center;
+        margin-top: 8px;
+    }
+
+    .tasks-no-results svg {
+        width: 40px;
+        height: 40px;
+        opacity: 0.45;
+    }
+
+    .tasks-no-results p {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+
     .home-footer {
         margin-top: 24px;
         padding: 18px 0 4px;
@@ -756,11 +871,13 @@
         font-size: 0.92rem;
     }
 
-    @media (max-width: 920px) {
-        .hero--dashboard {
-            grid-template-columns: 1fr;
+    @media (max-width: 640px) {
+        .hero-stats {
+            flex-direction: column;
         }
+    }
 
+    @media (max-width: 920px) {
         .section-panel__summary {
             flex-wrap: wrap;
         }
@@ -820,33 +937,28 @@
     }
 
     function showSubtasksAlert(message, type) {
-        const container = document.getElementById('subtasks-alert-container');
-        if (!container) {
-            return;
-        }
+        const area = document.getElementById('toast-area');
+        if (!area) return;
 
-        const alert = document.createElement('div');
-        alert.className = `alert alert--${type} auto-dismiss-alert`;
-        alert.setAttribute('role', 'alert');
-        alert.innerHTML = `
-            ${message}
-            <button type="button" class="alertclose" aria-label="Закрыть">×</button>
+        const icons = {
+            success: '<path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>',
+            danger:  '<path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/>',
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `toast toast--${type}`;
+        toast.setAttribute('role', 'alert');
+        toast.style.cssText = 'position:relative;overflow:hidden;';
+        toast.innerHTML = `
+            <svg class="toast__icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">${icons[type] || icons.danger}</svg>
+            <span class="toast__body">${message}</span>
+            <button type="button" class="toast__close" aria-label="Закрыть">×</button>
+            <span class="toast__progress"></span>
         `;
 
-        const closeBtn = alert.querySelector('.alertclose');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', function () {
-                alert.remove();
-            });
-        }
-
-        container.appendChild(alert);
-
-        setTimeout(function () {
-            if (alert.isConnected) {
-                alert.remove();
-            }
-        }, 4000);
+        toast.querySelector('.toast__close').addEventListener('click', function () { window.dismissToast(toast); });
+        area.appendChild(toast);
+        setTimeout(function () { if (toast.isConnected) window.dismissToast(toast); }, 4200);
     }
 
     function updateSubtaskRow(row, isCompleted) {
@@ -893,6 +1005,25 @@
                 allRows.forEach(function (row) {
                     updateSubtaskRow(row, data.is_completed);
                 });
+
+                if (data.parent_task_id !== undefined) {
+                    const badge = document.querySelector(`[data-task-pending-badge="${data.parent_task_id}"]`);
+                    if (badge) {
+                        if (data.pending_count > 0) {
+                            badge.className = 'badge badge--muted';
+                            badge.textContent = `Подзадач: ${data.pending_count}`;
+                        } else {
+                            badge.className = 'badge badge--success';
+                            badge.textContent = 'Готово к выполнению';
+                        }
+                    }
+
+                    const subtaskCountEl = document.getElementById('active-subtask-count');
+                    if (subtaskCountEl) {
+                        const delta = data.is_completed ? -1 : 1;
+                        subtaskCountEl.textContent = Math.max(0, (parseInt(subtaskCountEl.textContent, 10) || 0) + delta);
+                    }
+                }
             } else {
                 allCheckboxes.forEach(function (input) {
                     input.checked = !newState;
@@ -1102,6 +1233,66 @@
                 });
             }
         });
+
+        // ── Filter & Sort ──────────────────────────────────────────────
+        (function () {
+            const list       = document.getElementById('active-task-list');
+            const noResults  = document.getElementById('tasks-no-results');
+            const searchEl   = document.getElementById('task-search');
+            const catEl      = document.getElementById('task-category-filter');
+            const sortEl     = document.getElementById('task-sort');
+            const resetBtn   = document.getElementById('tasks-reset-filters');
+
+            if (!list) return;
+
+            const cards = Array.from(list.querySelectorAll('.task-preview-card'));
+
+            function applyFilters() {
+                const query = searchEl ? searchEl.value.trim().toLowerCase() : '';
+                const cat   = catEl   ? catEl.value   : '';
+                const sort  = sortEl  ? sortEl.value  : 'date-asc';
+
+                let visible = cards.filter(function (card) {
+                    const titleMatch = !query || card.dataset.title.includes(query);
+                    const catMatch   = !cat   || card.dataset.category === cat;
+                    return titleMatch && catMatch;
+                });
+
+                visible.sort(function (a, b) {
+                    if (sort === 'date-asc')   return Number(a.dataset.due) - Number(b.dataset.due);
+                    if (sort === 'date-desc')  return Number(b.dataset.due) - Number(a.dataset.due);
+                    if (sort === 'title-asc')  return a.dataset.title.localeCompare(b.dataset.title, 'ru');
+                    if (sort === 'title-desc') return b.dataset.title.localeCompare(a.dataset.title, 'ru');
+                    return 0;
+                });
+
+                const visibleSet = new Set(visible);
+                cards.forEach(function (card) {
+                    card.hidden = !visibleSet.has(card);
+                    const modal = document.getElementById(card.dataset.modalTarget);
+                    if (modal) modal.style.display = '';
+                });
+
+                visible.forEach(function (card, i) {
+                    list.appendChild(card);
+                });
+
+                if (noResults) noResults.style.display = visible.length === 0 ? 'flex' : 'none';
+            }
+
+            if (searchEl) searchEl.addEventListener('input', applyFilters);
+            if (catEl)    catEl.addEventListener('change', applyFilters);
+            if (sortEl)   sortEl.addEventListener('change', applyFilters);
+
+            if (resetBtn) {
+                resetBtn.addEventListener('click', function () {
+                    if (searchEl) searchEl.value = '';
+                    if (catEl)    catEl.value    = '';
+                    if (sortEl)   sortEl.value   = 'date-asc';
+                    applyFilters();
+                });
+            }
+        })();
     });
 </script>
 {% endblock %}

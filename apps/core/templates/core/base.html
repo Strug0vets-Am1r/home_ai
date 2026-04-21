@@ -239,6 +239,95 @@
             color: var(--text);
         }
 
+        .nav-avatar-wrap {
+            position: relative;
+        }
+
+        .nav-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 999px;
+            background: var(--primary);
+            color: #fff;
+            font: inherit;
+            font-size: 0.95rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: opacity 180ms, box-shadow 180ms;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .nav-avatar:hover {
+            opacity: 0.88;
+            box-shadow: var(--shadow-md);
+        }
+
+        .nav-avatar-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 180px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            padding: 6px;
+            z-index: 200;
+            display: grid;
+            gap: 2px;
+        }
+
+        .nav-avatar-dropdown[hidden] {
+            display: none;
+        }
+
+        .nav-avatar-dropdown__username {
+            padding: 8px 12px 6px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-avatar-dropdown__divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+
+        .nav-avatar-dropdown__item {
+            display: block;
+            padding: 9px 12px;
+            border-radius: 10px;
+            font-size: 0.92rem;
+            font-weight: 500;
+            color: var(--text);
+            text-decoration: none;
+            transition: background 150ms;
+            white-space: nowrap;
+        }
+
+        .nav-avatar-dropdown__item:hover {
+            background: var(--surface-2);
+        }
+
+        .nav-avatar-dropdown__item--danger {
+            color: var(--danger);
+        }
+
+        .nav-avatar-dropdown__item--danger:hover {
+            background: color-mix(in srgb, var(--danger) 10%, transparent);
+        }
+
         .theme-switcher {
             min-width: 140px;
         }
@@ -557,54 +646,119 @@
             border-color: var(--border);
         }
 
-        .alert-area {
-            display: grid;
+        .toast-area {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
             gap: 10px;
-            margin-bottom: 20px;
+            pointer-events: none;
+            max-width: 380px;
+            width: calc(100vw - 48px);
         }
 
-        .alert {
-            position: relative;
-            padding: 14px 44px 14px 16px;
-            border: 1px solid var(--border);
+        .toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 16px;
             border-radius: var(--radius-md);
             background: var(--surface);
-            box-shadow: var(--shadow-sm);
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            border-left-width: 4px;
+            pointer-events: all;
+            animation: toast-in 300ms cubic-bezier(.2,.8,.2,1) both;
         }
 
-        .alert--success {
-            border-color: color-mix(in srgb, var(--success) 32%, var(--border));
+        .toast.is-hiding {
+            animation: toast-out 280ms cubic-bezier(.4,0,1,1) both;
         }
 
-        .alert--danger {
-            border-color: color-mix(in srgb, var(--danger) 34%, var(--border));
+        @keyframes toast-in {
+            from { opacity: 0; transform: translateX(32px) scale(.96); }
+            to   { opacity: 1; transform: translateX(0)    scale(1); }
         }
 
-        .alert--warning {
-            border-color: color-mix(in srgb, var(--warning) 34%, var(--border));
+        @keyframes toast-out {
+            from { opacity: 1; transform: translateX(0)    scale(1);   max-height: 120px; margin-bottom: 0; }
+            to   { opacity: 0; transform: translateX(32px) scale(.96); max-height: 0;     margin-bottom: -10px; }
         }
 
-        .alert--info {
-            border-color: color-mix(in srgb, var(--primary) 26%, var(--border));
+        .toast--success { border-left-color: var(--success); }
+        .toast--danger  { border-left-color: var(--danger); }
+        .toast--warning { border-left-color: var(--warning); }
+        .toast--info    { border-left-color: var(--primary); }
+        .toast--error   { border-left-color: var(--danger); }
+
+        .toast__icon {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            margin-top: 1px;
         }
 
-        .alert__close {
+        .toast--success .toast__icon { color: var(--success); }
+        .toast--danger  .toast__icon { color: var(--danger); }
+        .toast--warning .toast__icon { color: var(--warning); }
+        .toast--info    .toast__icon { color: var(--primary); }
+        .toast--error   .toast__icon { color: var(--danger); }
+
+        .toast__body {
+            flex: 1;
+            min-width: 0;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text);
+        }
+
+        .toast__progress {
             position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 30px;
-            height: 30px;
+            bottom: 0;
+            left: 4px;
+            right: 0;
+            height: 3px;
+            border-radius: 0 0 var(--radius-md) var(--radius-md);
+            background: currentColor;
+            opacity: .18;
+            transform-origin: left;
+            animation: toast-progress 4200ms linear both;
+        }
+
+        @keyframes toast-progress {
+            from { transform: scaleX(1); }
+            to   { transform: scaleX(0); }
+        }
+
+        .toast__close {
+            flex-shrink: 0;
+            width: 26px;
+            height: 26px;
             border: 0;
             border-radius: 999px;
             background: transparent;
             color: var(--muted);
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            line-height: 1;
+            margin-top: -2px;
+            transition: background var(--transition), color var(--transition);
         }
 
-        .alert__close:hover {
-            background: color-mix(in srgb, var(--text) 7%, transparent);
+        .toast__close:hover {
+            background: color-mix(in srgb, var(--text) 8%, transparent);
             color: var(--text);
         }
+
+        /* keep old .alert-area harmless if referenced elsewhere */
+        .alert-area { display: none; }
 
         .form-grid {
             display: grid;
@@ -810,7 +964,6 @@
                         <div class="nav__group">
                             <a href="{% url 'home' %}" class="nav__link {% if request.resolver_match.url_name == 'home' %}is-active{% endif %}">Мои задачи</a>
                             <a href="{% url 'calendar' %}" class="nav__link {% if request.resolver_match.url_name == 'calendar' %}is-active{% endif %}">Календарь</a>
-                            <a href="{% url 'logout' %}" class="nav__link">Выйти</a>
                         </div>
                     {% endif %}
 
@@ -822,17 +975,44 @@
                             </select>
                         </div>
                     </div>
+
+                    {% if user.is_authenticated %}
+                        <div class="nav-avatar-wrap" id="nav-avatar-wrap">
+                            <button class="nav-avatar" id="nav-avatar-btn" aria-haspopup="true" aria-expanded="false" aria-label="Меню пользователя">
+                                {{ user.username|first|upper }}
+                            </button>
+                            <div class="nav-avatar-dropdown" id="nav-avatar-dropdown" hidden>
+                                <div class="nav-avatar-dropdown__username">{{ user.username }}</div>
+                                <a href="{% url 'profile' %}" class="nav-avatar-dropdown__item">Профиль</a>
+                                <a href="{% url 'categories' %}" class="nav-avatar-dropdown__item">Категории</a>
+                                <div class="nav-avatar-dropdown__divider"></div>
+                                <a href="{% url 'logout' %}" class="nav-avatar-dropdown__item nav-avatar-dropdown__item--danger">Выйти</a>
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </header>
 
         <main id="content" class="page">
-            <div id="global-alerts" class="alert-area">
+            <div id="toast-area" class="toast-area" aria-live="polite" aria-atomic="false">
                 {% if messages %}
                     {% for message in messages %}
-                        <div class="alert alert--{{ message.tags }} auto-dismiss-alert" role="alert">
-                            {{ message }}
-                            <button type="button" class="alert__close" aria-label="Закрыть уведомление">×</button>
+                        <div class="toast toast--{{ message.tags }}" role="alert" style="position:relative;overflow:hidden;">
+                            <svg class="toast__icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                {% if message.tags == 'success' %}
+                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>
+                                {% elif message.tags == 'danger' or message.tags == 'error' %}
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/>
+                                {% elif message.tags == 'warning' %}
+                                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/>
+                                {% else %}
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 0-2 0 1 1 0 0 0 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clip-rule="evenodd"/>
+                                {% endif %}
+                            </svg>
+                            <span class="toast__body">{{ message }}</span>
+                            <button type="button" class="toast__close" aria-label="Закрыть">×</button>
+                            <span class="toast__progress"></span>
                         </div>
                     {% endfor %}
                 {% endif %}
@@ -843,6 +1023,11 @@
     </div>
 
     <script>
+        window.dismissToast = function (el) {
+            el.classList.add('is-hiding');
+            el.addEventListener('animationend', function () { el.remove(); }, { once: true });
+        };
+
         (function () {
             const root = document.documentElement;
             const select = document.getElementById('themeSelect');
@@ -866,20 +1051,44 @@
                 });
             }
 
-            document.querySelectorAll('.auto-dismiss-alert').forEach(function (alertEl) {
-                const closeBtn = alertEl.querySelector('.alert__close');
-
+            document.querySelectorAll('.toast').forEach(function (toast) {
+                const closeBtn = toast.querySelector('.toast__close');
                 if (closeBtn) {
-                    closeBtn.addEventListener('click', function () {
-                        alertEl.remove();
-                    });
+                    closeBtn.addEventListener('click', function () { window.dismissToast(toast); });
                 }
-
                 setTimeout(function () {
-                    if (alertEl.isConnected) {
-                        alertEl.remove();
-                    }
-                }, 4000);
+                    if (toast.isConnected) { window.dismissToast(toast); }
+                }, 4200);
+            });
+        })();
+
+        (function () {
+            const wrap = document.getElementById('nav-avatar-wrap');
+            const btn = document.getElementById('nav-avatar-btn');
+            const dropdown = document.getElementById('nav-avatar-dropdown');
+            if (!wrap || !btn || !dropdown) return;
+
+            function open() {
+                dropdown.hidden = false;
+                btn.setAttribute('aria-expanded', 'true');
+            }
+
+            function close() {
+                dropdown.hidden = true;
+                btn.setAttribute('aria-expanded', 'false');
+            }
+
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                dropdown.hidden ? open() : close();
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!wrap.contains(e.target)) close();
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') close();
             });
         })();
     </script>

@@ -8,25 +8,56 @@
         <div class="eyebrow">Создание аккаунта</div>
         <h1 class="hero__title">Регистрация</h1>
     </div>
-    <p class="hero__meta">
-        Создай аккаунт, чтобы начать планировать домашние задачи.
-    </p>
+    <p class="hero__meta">Создай аккаунт, чтобы начать планировать домашние задачи.</p>
 </div>
 
-<div class="panel" style="max-width: 560px;">
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert--{{ message.tags }}" role="alert">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<div class="panel panel--glass" style="max-width: 560px;">
     <div class="panel__body">
         <form method="post" class="form-grid">
             {% csrf_token %}
 
+            <div class="profile-section__title">Личные данные</div>
+
             <div class="field">
                 <label class="field__label" for="username">Имя пользователя</label>
-                <input type="text" class="input" id="username" name="username" required>
+                <input type="text" class="input" id="username" name="username" value="{{ post.username|default:'' }}" required>
+            </div>
+
+            <div class="reg-row">
+                <div class="field">
+                    <label class="field__label" for="first_name">Имя</label>
+                    <input type="text" class="input" id="first_name" name="first_name" value="{{ post.first_name|default:'' }}">
+                </div>
+                <div class="field">
+                    <label class="field__label" for="last_name">Фамилия</label>
+                    <input type="text" class="input" id="last_name" name="last_name" value="{{ post.last_name|default:'' }}">
+                </div>
             </div>
 
             <div class="field">
                 <label class="field__label" for="email">Email</label>
-                <input type="email" class="input" id="email" name="email">
+                <input type="email" class="input" id="email" name="email" value="{{ post.email|default:'' }}">
             </div>
+
+            <div class="field">
+                <label class="field__label" for="gender">Пол</label>
+                <div class="profile-select-wrap">
+                    <select class="select" id="gender" name="gender">
+                        <option value="">Не указан</option>
+                        <option value="male" {% if post.gender == 'male' %}selected{% endif %}>Мужской</option>
+                        <option value="female" {% if post.gender == 'female' %}selected{% endif %}>Женский</option>
+                        <option value="other" {% if post.gender == 'other' %}selected{% endif %}>Другой</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="profile-section__title" style="margin-top: 4px;">Безопасность</div>
 
             <div class="field">
                 <label class="field__label" for="password">Пароль</label>
@@ -38,12 +69,55 @@
                 <input type="password" class="input" id="password2" name="password2" required>
             </div>
 
-            <button type="submit" class="button button--primary">Зарегистрироваться</button>
+            <button type="submit" class="button button--success">Зарегистрироваться</button>
         </form>
 
-        <p class="muted" style="margin:18px 0 0;">
+        <p class="muted" style="margin: 18px 0 0;">
             Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a>
         </p>
     </div>
 </div>
+
+<style>
+    .profile-section__title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+    }
+
+    .reg-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .profile-select-wrap {
+        position: relative;
+    }
+
+    .profile-select-wrap::after {
+        content: "▾";
+        position: absolute;
+        top: 50%;
+        right: 16px;
+        transform: translateY(-52%);
+        color: var(--muted);
+        font-size: 12px;
+        pointer-events: none;
+    }
+
+    .profile-select-wrap .select {
+        border-radius: 16px;
+        padding: 14px 40px 14px 16px;
+        min-height: unset;
+    }
+
+    @media (max-width: 480px) {
+        .reg-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
 {% endblock %}

@@ -23,8 +23,28 @@ class User(AbstractUser):
     room_count = models.IntegerField(default=1)
     is_survey_completed = models.BooleanField(default=False)
 
+    GENDER_CHOICES = [
+        ('male', 'Мужской'),
+        ('female', 'Женский'),
+        ('other', 'Другой'),
+    ]
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True)
+
     def __str__(self):
         return self.username
+
+
+class Category(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='categories')
+    name = models.CharField(max_length=100)
+    color = models.CharField(max_length=7, default='#6366f1')
+
+    class Meta:
+        ordering = ['name']
+        unique_together = ('user', 'name')
+
+    def __str__(self):
+        return self.name
 
 
 class Task(models.Model):
@@ -37,6 +57,14 @@ class Task(models.Model):
     description = models.TextField(blank=True, null=True)
     due_date = models.DateTimeField()
     is_completed = models.BooleanField(default=False)
+
+    category = models.ForeignKey(
+        'Category',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tasks'
+    )
 
     parent_task = models.ForeignKey(
         'self',

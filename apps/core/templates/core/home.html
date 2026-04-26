@@ -4,11 +4,8 @@
 
 {% block topbar %}
 <div class="topbar">
-    <div style="display: flex; align-items: center; gap: 16px;">
+    <div>
         <h1 class="topbar__title" id="topbar-title">Задачи</h1>
-        <button type="button" id="category-filter-toggle" class="button button--primary" style="font-size: 0.9rem; padding: 10px 16px; min-height: auto; height: 36px;">
-            Категории
-        </button>
     </div>
     {% if user.is_authenticated %}
         <div class="topbar__actions">
@@ -273,82 +270,7 @@
         background: color-mix(in srgb, var(--danger) 20%, var(--surface));
     }
 
-    /* Category Filter Modal */
-    .category-filter-modal__dialog {
-        position: relative;
-        z-index: 1;
-        width: min(100%, 340px);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        background: var(--surface);
-        color: var(--text);
-        padding: 16px;
-        display: grid;
-        gap: 14px;
-    }
-
-    .category-filter-modal__header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .category-filter-modal__title {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--text);
-    }
-
-    .category-filter-modal__close {
-        width: 34px;
-        height: 34px;
-        border-radius: 999px;
-        border: 1px solid var(--border-color);
-        background: color-mix(in srgb, #999 10%, var(--surface));
-        color: var(--text-secondary);
-        font: inherit;
-        font-size: 1.15rem;
-        line-height: 1;
-        cursor: pointer;
-        transition: all 200ms;
-    }
-
-    .category-filter-modal__close:hover {
-        background: color-mix(in srgb, #999 16%, var(--surface));
-        color: var(--text);
-    }
-
-    .category-filter-modal__list {
-        display: flex;
-        flex-direction: column;
-        max-height: 50vh;
-        overflow-y: auto;
-        gap: 0;
-    }
-
-    .category-filter-item {
-        display: block;
-        width: 100%;
-        padding: 14px 16px;
-        border: none;
-        background: transparent;
-        color: var(--text);
-        cursor: pointer;
-        font-family: inherit;
-        font-size: 0.95rem;
-        transition: all 200ms;
-        text-align: left;
-    }
-
-    .category-filter-item:hover {
-        background: color-mix(in srgb, var(--primary) 12%, var(--surface));
-        color: var(--primary);
-        font-weight: 500;
-    }
-
-    .category-view {
+.category-view {
         display: none;
     }
 
@@ -477,36 +399,6 @@
 </div>
 
 <div id="task-modals-container"></div>
-
-<!-- Category Filter Modal -->
-<div id="category-filter-modal" class="modal-backdrop">
-    <div class="category-filter-modal__dialog">
-        <div class="category-filter-modal__header">
-            <h3 class="category-filter-modal__title">Категории</h3>
-            <button
-                type="button"
-                class="category-filter-modal__close"
-                id="category-filter-close"
-                aria-label="Закрыть"
-            >
-                ×
-            </button>
-        </div>
-
-        <div class="category-filter-modal__list">
-            {% for category in categories %}
-                <button
-                    type="button"
-                    class="category-filter-item"
-                    data-category-id="{{ category.id }}"
-                    data-category-name="{{ category.name }}"
-                >
-                    {{ category.name }}
-                </button>
-            {% endfor %}
-        </div>
-    </div>
-</div>
 
 <!-- Confirmation Modal -->
 <div id="confirm-modal" class="modal-backdrop">
@@ -1371,8 +1263,6 @@
             closeListBtn.addEventListener('click', function () {
                 showTiles();
                 sessionStorage.removeItem('selectedTaskView');
-                selectedCategoryId = null;
-                closeCategoryModal();
             });
         }
 
@@ -1608,101 +1498,6 @@
             }
         });
 
-        // Category filter logic
-        const categoryFilterToggle = document.getElementById('category-filter-toggle');
-        const categoryFilterModal = document.getElementById('category-filter-modal');
-        const taskTilesView = document.getElementById('task-tiles-view');
-        const taskListView = document.getElementById('task-list-view');
-        const filteredTasksContainer = document.getElementById('filtered-tasks');
-
-        console.log('Category filter elements:', {
-            toggle: categoryFilterToggle,
-            modal: categoryFilterModal
-        });
-
-        let selectedCategoryId = null;
-
-        function openCategoryModal() {
-            console.log('Opening category modal');
-            if (categoryFilterModal) {
-                categoryFilterModal.classList.add('is-open');
-            }
-        }
-
-        function closeCategoryModal() {
-            if (categoryFilterModal) {
-                categoryFilterModal.classList.remove('is-open');
-            }
-        }
-
-        function renderCategoryTasks(categoryId, categoryName) {
-            const categoryTasks = tasksData.tasks.filter(t => t.category && t.category.name === categoryName);
-            const completedCategoryTasks = tasksData.completed_tasks.filter(t => t.category && t.category.name === categoryName);
-            const allCategoryTasks = [...categoryTasks, ...completedCategoryTasks];
-
-            if (allCategoryTasks.length === 0) {
-                filteredTasksContainer.innerHTML = `
-                    <div class="empty-state">
-                        <svg class="empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 15.803a7.5 7.5 0 0 0 10.607 0Z"/></svg>
-                        <h3 class="empty-state__title">Нет задач</h3>
-                        <p class="empty-state__text">В этой категории пока нет задач</p>
-                    </div>
-                `;
-            } else {
-                filteredTasksContainer.innerHTML = `<div class="task-list">${allCategoryTasks.map(renderTaskItem).join('')}</div>`;
-
-                // Re-attach event listeners for newly rendered tasks
-                filteredTasksContainer.querySelectorAll('.js-task-open').forEach(function (card) {
-                    card.addEventListener('click', function () {
-                        const taskId = this.dataset.modalTarget.split('-').pop();
-                        const task = [...tasksData.tasks, ...tasksData.completed_tasks].find(t => t.id === parseInt(taskId));
-                        if (task) {
-                            openTaskModalWithData(task);
-                        }
-                    });
-                });
-            }
-
-            window.scrollTo(0, 0);
-        }
-
-        function showCategoryView(categoryId, categoryName) {
-            const topbarTitle = document.getElementById('topbar-title');
-            const closeBtn = document.getElementById('topbar-close-btn');
-
-            selectedCategoryId = categoryId;
-            taskTilesView.style.display = 'none';
-            taskListView.style.display = 'block';
-
-            document.getElementById('view-title').textContent = categoryName;
-            if (topbarTitle) topbarTitle.textContent = 'Задачи (' + categoryName + ')';
-            if (closeBtn) closeBtn.style.display = 'flex';
-
-            renderCategoryTasks(categoryId, categoryName);
-        }
-
-
-        categoryFilterToggle.addEventListener('click', openCategoryModal);
-
-        const categoryFilterCloseBtn = document.getElementById('category-filter-close');
-        if (categoryFilterCloseBtn) {
-            categoryFilterCloseBtn.addEventListener('click', closeCategoryModal);
-        }
-
-        document.querySelectorAll('#category-filter-modal .category-filter-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const categoryId = this.dataset.categoryId;
-                const categoryName = this.dataset.categoryName;
-                showCategoryView(categoryId, categoryName);
-                closeCategoryModal();
-            });
-        });
-
-        categoryFilterModal.addEventListener('click', function(e) {
-            if (e.target === categoryFilterModal) {
-                closeCategoryModal();
-            }
-        });
     });
 </script>
 {% endblock %}

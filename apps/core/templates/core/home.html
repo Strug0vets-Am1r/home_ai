@@ -1,528 +1,648 @@
 {% extends 'core/base.html' %}
 
-{% block title %}Мои задачи{% endblock %}
-
-{% block topbar %}
-<div class="topbar">
-    <div style="display: flex; align-items: center; gap: 16px;">
-        <h1 class="topbar__title" id="topbar-title">Задачи</h1>
-        <button type="button" id="category-filter-toggle" class="button button--primary" style="font-size: 0.9rem; padding: 10px 16px; min-height: auto; height: 36px;">
-            Категории
-        </button>
-    </div>
-    {% if user.is_authenticated %}
-        <div class="topbar__actions">
-            <button type="button" id="clear-completed-btn" class="button button--danger" style="display: none; margin: 0;">Очистить список</button>
-            <a href="{% url 'task_create' %}" class="topbar__action-button">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Новая задача
-            </a>
-            <button type="button" id="topbar-close-btn" class="topbar__close-btn" title="Закрыть" style="display: none;">×</button>
-        </div>
-    {% endif %}
-</div>
-{% endblock %}
+{% block title %}Главная{% endblock %}
 
 {% block content %}
-<style>
-    .task-tiles {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
-        margin-bottom: 32px;
-    }
-
-    .task-tile {
-        position: relative;
-        overflow: hidden;
-        border-radius: 18px;
-        padding: 28px 24px;
-        min-height: 140px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: space-between;
-        cursor: pointer;
-        border: 2px solid;
-        background: var(--tile-bg);
-        color: var(--tile-color);
-
-        transition: all 200ms cubic-bezier(.2,.8,.2,1);
-        text-decoration: none;
-        font-family: inherit;
-        --tile-color: var(--success);
-        --tile-bg: color-mix(in srgb, var(--success) 14%, var(--surface));
-        border-color: color-mix(in srgb, var(--success) 24%, var(--border-color));
-    }
-
-    .task-tile:hover {
-        transform: translateY(-2px);
-
-    }
-
-    .task-tile--planned {
-        --tile-color: var(--primary);
-        --tile-bg: color-mix(in srgb, var(--primary) 14%, var(--surface));
-        border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
-    }
-
-    .task-tile--favorites {
-        --tile-color: var(--warning);
-        --tile-bg: color-mix(in srgb, var(--warning) 14%, var(--surface));
-        border-color: color-mix(in srgb, var(--warning) 24%, var(--border-color));
-    }
-
-    .task-tile--urgent {
-        --tile-color: #d946ef;
-        --tile-bg: color-mix(in srgb, #d946ef 14%, var(--surface));
-        border-color: color-mix(in srgb, #d946ef 24%, var(--border-color));
-    }
-
-    .task-tile--completed {
-        --tile-color: #9ca3af;
-        --tile-bg: color-mix(in srgb, #9ca3af 14%, var(--surface));
-        border-color: color-mix(in srgb, #9ca3af 24%, var(--border-color));
-    }
-
-    .task-tile--overdue {
-        --tile-color: var(--danger);
-        --tile-bg: color-mix(in srgb, var(--danger) 14%, var(--surface));
-        border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
-    }
-
-    .task-tile__icon {
-        width: 40px;
-        height: 40px;
-        margin-bottom: 16px;
-    }
-
-    .task-tile__label {
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 0;
-    }
-
-    .task-tile__count {
-        font-size: 32px;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        align-self: flex-end;
-    }
-
-    .task-list {
-        display: grid;
-        gap: 12px;
-    }
-
-    .task-item {
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        background: var(--surface);
-        padding: 16px 18px;
-        cursor: pointer;
-        transition: all 200ms cubic-bezier(.2,.8,.2,1);
-    }
-
-    .task-item:hover {
-
-        transform: translateY(-1px);
-        border-color: var(--primary);
-    }
-
-    .task-item--completed {
-        opacity: 0.75;
-        background: var(--surface);
-    }
-
-    .task-item__top {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 14px;
-        margin-bottom: 14px;
-    }
-
-    .task-item__title-wrap {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-        flex: 1;
-        min-width: 0;
-    }
-
-    .task-item__title {
-        margin: 0;
-        font-size: 1.02rem;
-        font-weight: 600;
-        color: var(--text);
-        line-height: 1.2;
-    }
-
-    .task-item--completed .task-item__title {
-        text-decoration: line-through;
-        opacity: 0.7;
-    }
-
-    .task-item__category {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    .task-item__time {
-        color: var(--text-secondary);
-        font-size: 0.92rem;
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-
-    .task-item__bottom {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding-top: 12px;
-        border-top: 1.5px solid var(--border-color);
-        font-size: 0.85rem;
-        color: var(--text-secondary);
-    }
-
-    .section-title {
-        margin: 32px 0 18px;
-        font-size: 17px;
-        font-weight: 700;
-        color: var(--text);
-        letter-spacing: -0.01em;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 40px 20px;
-        border: 1.5px solid var(--border-color);
-        border-radius: 16px;
-        background: var(--surface);
-    }
-
-    .empty-state__icon {
-        width: 48px;
-        height: 48px;
-        margin: 0 auto 16px;
-        opacity: 0.35;
-    }
-
-    .empty-state__title {
-        margin: 0 0 8px;
-        font-size: 16px;
-        font-weight: 700;
-        color: var(--text);
-    }
-
-    .empty-state__text {
-        margin: 0;
-        color: var(--text-secondary);
-        font-size: 14px;
-    }
-
-    @media (max-width: 768px) {
-        .task-tiles {
-            grid-template-columns: repeat(2, 1fr);
-        }
-
-        .task-tile {
-            min-height: 120px;
-            padding: 20px 16px;
-        }
-
-        .task-tile__icon {
-            width: 32px;
-            height: 32px;
-        }
-
-        .task-tile__label {
-            font-size: 14px;
-        }
-
-        .task-tile__count {
-            font-size: 28px;
-        }
-    }
-
-    .topbar__close-btn {
-        width: 40px;
-        height: 40px;
-        border: 1.5px solid;
-        border-radius: 8px;
-        background: color-mix(in srgb, var(--danger) 14%, var(--surface));
-        color: var(--danger);
-        border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
-        font-size: 1.4rem;
-        cursor: pointer;
-        transition: all var(--transition);
-        font-family: inherit;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-    }
-
-    .topbar__close-btn:hover {
-        background: color-mix(in srgb, var(--danger) 20%, var(--surface));
-    }
-
-    /* Category Filter Modal */
-    .category-filter-modal__dialog {
-        position: relative;
-        z-index: 1;
-        width: min(100%, 340px);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        background: var(--surface);
-        color: var(--text);
-        padding: 16px;
-        display: grid;
-        gap: 14px;
-    }
-
-    .category-filter-modal__header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .category-filter-modal__title {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--text);
-    }
-
-    .category-filter-modal__close {
-        width: 34px;
-        height: 34px;
-        border-radius: 999px;
-        border: 1px solid var(--border-color);
-        background: color-mix(in srgb, #999 10%, var(--surface));
-        color: var(--text-secondary);
-        font: inherit;
-        font-size: 1.15rem;
-        line-height: 1;
-        cursor: pointer;
-        transition: all 200ms;
-    }
-
-    .category-filter-modal__close:hover {
-        background: color-mix(in srgb, #999 16%, var(--surface));
-        color: var(--text);
-    }
-
-    .category-filter-modal__list {
-        display: flex;
-        flex-direction: column;
-        max-height: 50vh;
-        overflow-y: auto;
-        gap: 0;
-    }
-
-    .category-filter-item {
-        display: block;
-        width: 100%;
-        padding: 14px 16px;
-        border: none;
-        background: transparent;
-        color: var(--text);
-        cursor: pointer;
-        font-family: inherit;
-        font-size: 0.95rem;
-        transition: all 200ms;
-        text-align: left;
-    }
-
-    .category-filter-item:hover {
-        background: color-mix(in srgb, var(--primary) 12%, var(--surface));
-        color: var(--primary);
-        font-weight: 500;
-    }
-
-    .category-view {
-        display: none;
-    }
-
-    .category-view.is-active {
-        display: block;
-    }
-
-    .category-group {
-        margin-bottom: 28px;
-    }
-
-    .category-group__title {
-        margin: 24px 0 12px;
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .category-group__items {
-        display: grid;
-        gap: 12px;
-    }
-</style>
-
-<!-- Task data for filtering -->
-<script id="tasks-data" type="application/json">
-{
-  "now": "{{ today|date:'c' }}",
-  "tasks": [
-    {% for task in tasks %}
-      {
-        "id": {{ task.id }},
-        "title": "{{ task.title|escapejs }}",
-        "description": "{{ task.description|escapejs }}",
-        "due_date": "{{ task.due_date|date:'c' }}",
-        "due_date_display": "{{ task.due_date|date:'d.m.Y H:i' }}",
-        "is_completed": false,
-        "is_favorite": {{ task.is_favorite|lower }},
-        "task_list": "{{ task.task_list }}",
-        "category": {% if task.category %}{"name": "{{ task.category.name }}", "color": "{{ task.category.color }}"}{% else %}null{% endif %},
-        "pending_subtask_count": {{ task.pending_subtask_count }},
-        "subtasks": [
-          {% for subtask in task.subtasks.all %}
-            {
-              "id": {{ subtask.id }},
-              "title": "{{ subtask.title|escapejs }}",
-              "is_completed": {{ subtask.is_completed|lower }}
-            }{% if not forloop.last %},{% endif %}
-          {% endfor %}
-        ]
-      }{% if not forloop.last %},{% endif %}
-    {% endfor %}
-  ],
-  "completed_tasks": [
-    {% for task in completed_tasks %}
-      {
-        "id": {{ task.id }},
-        "title": "{{ task.title|escapejs }}",
-        "description": "{{ task.description|escapejs }}",
-        "due_date": "{{ task.due_date|date:'c' }}",
-        "due_date_display": "{{ task.due_date|date:'d.m.Y H:i' }}",
-        "is_completed": true,
-        "category": {% if task.category %}{"name": "{{ task.category.name }}", "color": "{{ task.category.color }}"}{% else %}null{% endif %},
-        "pending_subtask_count": 0,
-        "subtasks": [
-          {% for subtask in task.subtasks.all %}
-            {
-              "id": {{ subtask.id }},
-              "title": "{{ subtask.title|escapejs }}",
-              "is_completed": {{ subtask.is_completed|lower }}
-            }{% if not forloop.last %},{% endif %}
-          {% endfor %}
-        ]
-      }{% if not forloop.last %},{% endif %}
-    {% endfor %}
-  ]
-}
-</script>
-
-<!-- Task Tiles -->
-<div id="task-tiles-view" class="task-tiles" style="display: none;">
-    <button class="task-tile" data-view="active">
-        <svg class="task-tile__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-        <div class="task-tile__label">Активные</div>
-        <div class="task-tile__count">{{ active_count }}</div>
-    </button>
-
-    <button class="task-tile task-tile--planned" data-view="planned">
-        <svg class="task-tile__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <div class="task-tile__label">В планах</div>
-        <div class="task-tile__count">{{ planned_count }}</div>
-    </button>
-
-    <button class="task-tile task-tile--favorites" data-view="favorites">
-        <svg class="task-tile__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-        <div class="task-tile__label">Избранные</div>
-        <div class="task-tile__count">{{ favorites_count }}</div>
-    </button>
-
-    <button class="task-tile task-tile--urgent" data-view="urgent">
-        <svg class="task-tile__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><polyline points="12 10 12 13 14 15"/><line x1="5" y1="3" x2="2" y2="6"/><line x1="22" y1="6" x2="19" y2="3"/></svg>
-        <div class="task-tile__label">Срочные</div>
-        <div class="task-tile__count">{{ urgent_count }}</div>
-    </button>
-
-    <button class="task-tile task-tile--completed" data-view="completed">
-        <svg class="task-tile__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-        <div class="task-tile__label">Выполненные</div>
-        <div class="task-tile__count">{{ completed_count }}</div>
-    </button>
-
-    <button class="task-tile task-tile--overdue" data-view="overdue">
-        <svg class="task-tile__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <div class="task-tile__label">Просроченные</div>
-        <div class="task-tile__count">{{ overdue_count }}</div>
-    </button>
+<div class="hero hero--dashboard">
+    <h1 class="hero__title">Мои задачи</h1>
 </div>
 
-<!-- Task List View -->
-<div id="task-list-view" style="display: none;">
-    <button id="back-to-tiles" style="display: none;"></button>
-    <h2 class="section-title" id="view-title" style="margin: 0; display: none;">Задачи</h2>
-    <div id="filtered-tasks"></div>
-</div>
+<div class="hero-stats">
+    <div class="hero-stat panel panel--glass">
+        <div class="hero-stat__label">Активные задачи</div>
+        <div class="hero-stat__value">{{ active_count }}</div>
+    </div>
 
-<div id="task-modals-container"></div>
+    <div class="hero-stat panel panel--glass">
+        <div class="hero-stat__label">Оставшиеся подзадачи</div>
+        <div class="hero-stat__value">{{ active_subtask_count }}</div>
+    </div>
 
-<!-- Category Filter Modal -->
-<div id="category-filter-modal" class="modal-backdrop">
-    <div class="category-filter-modal__dialog">
-        <div class="category-filter-modal__header">
-            <h3 class="category-filter-modal__title">Категории</h3>
-            <button
-                type="button"
-                class="category-filter-modal__close"
-                id="category-filter-close"
-                aria-label="Закрыть"
-            >
-                ×
-            </button>
-        </div>
-
-        <div class="category-filter-modal__list">
-            {% for category in categories %}
-                <button
-                    type="button"
-                    class="category-filter-item"
-                    data-category-id="{{ category.id }}"
-                    data-category-name="{{ category.name }}"
-                >
-                    {{ category.name }}
-                </button>
-            {% endfor %}
-        </div>
+    <div class="hero-stat panel panel--glass">
+        <div class="hero-stat__label">Выполненные задачи</div>
+        <div class="hero-stat__value">{{ completed_count }}</div>
     </div>
 </div>
 
-<!-- Confirmation Modal -->
-<div id="confirm-modal" class="modal-backdrop">
-    <div class="modal-dialog confirm-modal__dialog">
-        <div class="confirm-modal__content">
-            <h2 class="confirm-modal__title" id="confirm-modal-title">Подтверждение</h2>
-            <p class="confirm-modal__text" id="confirm-modal-text"></p>
-            <div class="confirm-modal__actions">
-                <button type="button" class="button button--primary" id="confirm-modal-cancel">Отмена</button>
-                <button type="button" class="button button--danger" id="confirm-modal-confirm">Удалить</button>
+<div id="subtasks-alert-container"></div>
+
+<section class="task-section">
+    <details class="section-panel" id="active-tasks-section">
+        <summary class="section-panel__summary">
+            <div class="section-panel__title-wrap">
+                <h2 class="section-panel__title">Актуальные задачи</h2>
+                <p class="section-panel__meta" id="active-section-meta">
+                    {% if tasks %}
+                        {{ tasks|length }} активных задач · <span id="active-subtask-count">{{ active_subtask_count }}</span> незавершённых подзадач
+                    {% else %}
+                        Пока нет активных задач
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="section-panel__actions" data-prevent-details-toggle>
+                <a href="{% url 'task_create' %}" class="button button--primary">+ Новая задача</a>
+            </div>
+        </summary>
+
+        <div class="section-panel__content">
+            {% if tasks %}
+                <div class="task-filters">
+                    <div class="task-filters__search-wrap">
+                        <svg class="task-filters__search-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clip-rule="evenodd"/></svg>
+                        <input
+                            type="search"
+                            id="task-search"
+                            class="task-filters__search"
+                            placeholder="Поиск по названию..."
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <select id="task-category-filter" class="task-filters__select">
+                        <option value="">Все категории</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <select id="task-sort" class="task-filters__select">
+                        <option value="date-asc">По дате ↑</option>
+                        <option value="date-desc">По дате ↓</option>
+                        <option value="title-asc">По названию A–Я</option>
+                        <option value="title-desc">По названию Я–А</option>
+                    </select>
+                </div>
+
+                <div class="task-list" id="active-task-list">
+                    {% for task in tasks %}
+                        <article
+                            class="task-preview-card js-task-open"
+                            role="button"
+                            tabindex="0"
+                            aria-label="Открыть задачу {{ task.title }}"
+                            data-modal-target="task-modal-{{ task.id }}"
+                            data-title="{{ task.title|lower }}"
+                            data-category="{{ task.category.id|default:'' }}"
+                            data-due="{{ task.due_date|date:'U' }}"
+                        >
+                            <div class="task-preview-card__top">
+                                <div class="task-preview-card__title-wrap">
+                                    <h3 class="task-preview-card__title">{{ task.title }}</h3>
+
+                                    {% if task.category %}
+                                        <span class="badge task-category-badge" style="background: {{ task.category.color }}1a; color: {{ task.category.color }}; border-color: {{ task.category.color }}40;">
+                                            <span class="category-dot-sm" style="background: {{ task.category.color }};"></span>
+                                            {{ task.category.name }}
+                                        </span>
+                                    {% endif %}
+                                    {% if task.pending_subtask_count > 0 %}
+                                        <span class="badge badge--muted" data-task-pending-badge="{{ task.id }}">Подзадач: {{ task.pending_subtask_count }}</span>
+                                    {% else %}
+                                        <span class="badge badge--success" data-task-pending-badge="{{ task.id }}">Готово к выполнению</span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="task-preview-card__time">
+                                    {{ task.due_date|date:"d.m.Y H:i" }}
+                                </div>
+                            </div>
+
+                            <div class="task-preview-card__bottom">
+                                <span class="task-preview-card__hint">Нажми, чтобы открыть задачу</span>
+                            </div>
+                        </article>
+
+                        <div
+                            class="modal-backdrop task-modal"
+                            id="task-modal-{{ task.id }}"
+                            aria-hidden="true"
+                        >
+                            <div
+                                class="modal-dialog modal-dialog--task panel panel--glass"
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="task-modal-title-{{ task.id }}"
+                            >
+                                <div class="panel__body task-modal__body">
+                                    <div class="task-modal__header">
+                                        <div class="task-modal__header-main">
+                                            <div class="badge badge--muted" style="width: fit-content;">Актуальная задача</div>
+                                            <h3 id="task-modal-title-{{ task.id }}" class="task-modal__title">{{ task.title }}</h3>
+                                            <p class="task-modal__time">{{ task.due_date|date:"d.m.Y H:i" }}</p>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            class="modal-close-button js-close-task-modal"
+                                            aria-label="Закрыть окно"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+
+                                    <div class="task-modal__content">
+                                        {% if task.description %}
+                                            <div class="task-modal__block">
+                                                <div class="task-modal__label">Описание</div>
+                                                <p class="task-card__text task-modal__description" style="margin: 0;">{{ task.description }}</p>
+                                            </div>
+                                        {% endif %}
+
+                                        <div class="task-modal__block">
+                                            <div class="task-modal__label">Подзадачи</div>
+
+                                            {% if task.subtasks.all %}
+                                                <div class="subtasks">
+                                                    {% for subtask in task.subtasks.all %}
+                                                        <div
+                                                            class="subtask subtask--checkable {% if subtask.is_completed %}is-completed{% endif %}"
+                                                            data-subtask-row
+                                                            data-subtask-id="{{ subtask.id }}"
+                                                            data-parent-task-id="{{ task.id }}"
+                                                        >
+                                                            <div class="subtask__left">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    class="subtask-checkbox"
+                                                                    data-subtask-id="{{ subtask.id }}"
+                                                                    data-parent-task-id="{{ task.id }}"
+                                                                    {% if subtask.is_completed %}checked{% endif %}
+                                                                >
+                                                                <span class="subtask__text" data-subtask-text>
+                                                                    {{ subtask.title }}
+                                                                </span>
+                                                            </div>
+
+                                                            <span
+                                                                class="badge {% if subtask.is_completed %}badge--success{% else %}badge--muted{% endif %}"
+                                                                data-subtask-badge
+                                                            >
+                                                                {% if subtask.is_completed %}Выполнено{% else %}Не выполнено{% endif %}
+                                                            </span>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <p class="muted" style="margin: 0;">У этой задачи пока нет подзадач.</p>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="task-modal__actions">
+                                            <a href="{% url 'complete_task' task.id %}" class="button button--success button--small">Завершить задачу</a>
+                                            <a href="{% url 'task_edit' task.id %}" class="button button--secondary button--small">Редактировать</a>
+                                            <button
+                                                type="button"
+                                                class="button button--ghost button--small js-generate-subtasks"
+                                                data-task-id="{{ task.id }}"
+                                                data-task-title="{{ task.title|escape }}"
+                                            >
+                                                Сгенерировать подзадачи
+                                            </button>
+                                            <a href="{% url 'task_delete' task.id %}" class="button button--danger button--small">Удалить</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div id="tasks-no-results" class="tasks-no-results" style="display:none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 15.803a7.5 7.5 0 0 0 10.607 0Z"/></svg>
+                    <p>Задачи не найдены</p>
+                    <button type="button" class="button button--ghost button--small" id="tasks-reset-filters">Сбросить фильтры</button>
+                </div>
+            {% else %}
+                <div class="panel panel--glass" style="margin-top: 6px;">
+                    <div class="panel__body">
+                        <p class="muted" style="margin: 0 0 12px;">Пока нет активных задач.</p>
+                        <a href="{% url 'task_create' %}" class="button button--primary">Создать первую задачу</a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </details>
+</section>
+
+<section class="task-section">
+    <details class="section-panel" id="completed-tasks-section">
+        <summary class="section-panel__summary">
+            <div class="section-panel__title-wrap">
+                <h2 class="section-panel__title">Выполненные задачи</h2>
+                <p class="section-panel__meta">
+                    {% if completed_tasks %}
+                        {{ completed_tasks|length }} выполненных задач
+                    {% else %}
+                        Пока нет выполненных задач
+                    {% endif %}
+                </p>
+            </div>
+
+            {% if completed_tasks %}
+                <div class="section-panel__actions" data-prevent-details-toggle>
+                    <form method="post" action="{% url 'clear_completed_tasks' %}" id="clear-completed-form">
+                        {% csrf_token %}
+                        <button
+                            type="button"
+                            class="button button--danger button--small"
+                            id="open-clear-completed-modal"
+                        >
+                            Очистить выполненные
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </summary>
+
+        <div class="section-panel__content">
+            {% if completed_tasks %}
+                <div class="task-list">
+                    {% for task in completed_tasks %}
+                        <article
+                            class="task-preview-card task-preview-card--completed js-task-open"
+                            role="button"
+                            tabindex="0"
+                            aria-label="Открыть задачу {{ task.title }}"
+                            data-modal-target="task-modal-{{ task.id }}"
+                        >
+                            <div class="task-preview-card__top">
+                                <div class="task-preview-card__title-wrap">
+                                    <h3 class="task-preview-card__title"><s>{{ task.title }}</s></h3>
+                                    <span class="badge badge--success">Выполнено</span>
+                                </div>
+
+                                <div class="task-preview-card__time">
+                                    {{ task.due_date|date:"d.m.Y H:i" }}
+                                </div>
+                            </div>
+
+                            <div class="task-preview-card__bottom">
+                                <span class="task-preview-card__hint">Нажми, чтобы открыть задачу</span>
+                            </div>
+                        </article>
+
+                        <div
+                            class="modal-backdrop task-modal"
+                            id="task-modal-{{ task.id }}"
+                            aria-hidden="true"
+                        >
+                            <div
+                                class="modal-dialog modal-dialog--task panel panel--glass"
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="task-modal-title-{{ task.id }}"
+                            >
+                                <div class="panel__body task-modal__body">
+                                    <div class="task-modal__header">
+                                        <div class="task-modal__header-main">
+                                            <div class="badge badge--success" style="width: fit-content;">Выполнено</div>
+                                            <h3 id="task-modal-title-{{ task.id }}" class="task-modal__title"><s>{{ task.title }}</s></h3>
+                                            <p class="task-modal__time">{{ task.due_date|date:"d.m.Y H:i" }}</p>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            class="modal-close-button js-close-task-modal"
+                                            aria-label="Закрыть окно"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+
+                                    <div class="task-modal__content">
+                                        {% if task.description %}
+                                            <div class="task-modal__block">
+                                                <div class="task-modal__label">Описание</div>
+                                                <p class="task-card__text task-modal__description" style="margin: 0;">{{ task.description }}</p>
+                                            </div>
+                                        {% endif %}
+
+                                        <div class="task-modal__block">
+                                            <div class="task-modal__label">Подзадачи</div>
+
+                                            {% if task.subtasks.all %}
+                                                <div class="subtasks">
+                                                    {% for subtask in task.subtasks.all %}
+                                                        <div
+                                                            class="subtask subtask--checkable {% if subtask.is_completed %}is-completed{% endif %}"
+                                                            data-subtask-row
+                                                            data-subtask-id="{{ subtask.id }}"
+                                                            data-parent-task-id="{{ task.id }}"
+                                                        >
+                                                            <div class="subtask__left">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    class="subtask-checkbox"
+                                                                    data-subtask-id="{{ subtask.id }}"
+                                                                    data-parent-task-id="{{ task.id }}"
+                                                                    {% if subtask.is_completed %}checked{% endif %}
+                                                                >
+                                                                <span class="subtask__text" data-subtask-text>
+                                                                    {{ subtask.title }}
+                                                                </span>
+                                                            </div>
+
+                                                            <span
+                                                                class="badge {% if subtask.is_completed %}badge--success{% else %}badge--muted{% endif %}"
+                                                                data-subtask-badge
+                                                            >
+                                                                {% if subtask.is_completed %}Выполнено{% else %}Не выполнено{% endif %}
+                                                            </span>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <p class="muted" style="margin: 0;">У этой задачи нет подзадач.</p>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="task-modal__actions">
+                                            <a href="{% url 'restore_task' task.id %}" class="button button--secondary button--small">Восстановить</a>
+                                            <a href="{% url 'task_delete' task.id %}" class="button button--danger button--small">Удалить</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="panel panel--glass" style="margin-top: 6px;">
+                    <div class="panel__body">
+                        <p class="muted" style="margin: 0;">Пока нет выполненных задач.</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </details>
+</section>
+
+<footer class="home-footer">
+    <p class="home-footer__text">© 2026 HomeAI. Умный планировщик домашних дел.</p>
+</footer>
+
+<div
+    class="modal-backdrop"
+    id="clear-completed-modal"
+    aria-hidden="true"
+>
+    <div
+        class="modal-dialog panel panel--glass"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="clear-completed-modal-title"
+        aria-describedby="clear-completed-modal-description"
+    >
+        <div class="panel__body">
+            <div class="stack" style="gap: 16px;">
+                <div class="badge badge--muted" style="width: fit-content;">Подтверждение</div>
+
+                <div>
+                    <h3 id="clear-completed-modal-title" style="margin: 0 0 10px;">Очистить корзину?</h3>
+                    <p id="clear-completed-modal-description" class="muted" style="margin: 0;">
+                        Все выполненные задачи будут удалены без возможности восстановления.
+                    </p>
+                </div>
+
+                <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end;">
+                    <button
+                        type="button"
+                        class="button button--secondary button--small"
+                        id="cancel-clear-completed-modal"
+                    >
+                        Отмена
+                    </button>
+                    <button
+                        type="button"
+                        class="button button--danger button--small"
+                        id="confirm-clear-completed-modal"
+                    >
+                        Да, очистить
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <style>
+    .hero--dashboard {
+        margin-bottom: 16px;
+    }
+
+    .hero-stats {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+        align-items: stretch;
+    }
+
+    .hero-stat {
+        flex: 1 1 0;
+        padding: 18px 20px;
+        min-width: 0;
+        margin-top: 0 !important;
+    }
+
+    .hero-stat__label {
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .hero-stat__value {
+        font-size: 1.9rem;
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        color: var(--text);
+    }
+
+    .task-section + .task-section {
+        margin-top: 18px;
+    }
+
+    .section-panel {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: linear-gradient(180deg, var(--surface), var(--surface-2));
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
+
+    .section-panel__summary {
+        list-style: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 20px;
+        cursor: pointer;
+    }
+
+    .section-panel__summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .section-panel__summary::after {
+        content: "▾";
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 700;
+        flex: 0 0 auto;
+        transition: transform 0.18s ease;
+    }
+
+    .section-panel[open] .section-panel__summary::after {
+        transform: rotate(180deg);
+    }
+
+    .section-panel__title-wrap {
+        min-width: 0;
+    }
+
+    .section-panel__title {
+        margin: 0 0 4px;
+    }
+
+    .section-panel__meta {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+    }
+
+    .section-panel__actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-left: auto;
+        margin-right: 8px;
+    }
+
+    .section-panel__content {
+        padding: 0 20px 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    .task-list {
+        display: grid;
+        gap: 14px;
+        margin-top: 18px;
+    }
+
+    .task-preview-card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: linear-gradient(180deg, var(--surface), var(--surface-2));
+        box-shadow: var(--shadow-sm);
+        padding: 18px;
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .task-preview-card:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .task-preview-card:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 3px;
+    }
+
+    .task-preview-card--completed {
+        opacity: 0.95;
+    }
+
+    .task-preview-card__top {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 14px;
+    }
+
+    .task-preview-card__title-wrap {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .task-preview-card__title {
+        margin: 0;
+        font-size: 1.02rem;
+        line-height: 1.2;
+    }
+
+    .task-preview-card__time {
+        color: var(--muted);
+        font-size: 0.92rem;
+        white-space: nowrap;
+        flex: 0 0 auto;
+    }
+
+    .task-preview-card__bottom {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+    }
+
+    .task-preview-card__hint {
+        color: var(--muted);
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    .category-dot-sm {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        flex-shrink: 0;
+        display: inline-block;
+    }
+
+    .task-category-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .subtask--checkable {
+        cursor: default;
+    }
+
+    .subtask__left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .subtask__text {
+        min-width: 0;
+        word-break: break-word;
+        transition: opacity 0.18s ease, color 0.18s ease;
+    }
+
+    .subtask-checkbox {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        accent-color: var(--primary);
+        cursor: pointer;
+        flex: 0 0 auto;
+    }
+
+    .subtask.is-completed .subtask__text {
+        text-decoration: line-through;
+        opacity: 0.72;
+    }
+
     .modal-backdrop {
         position: fixed;
         inset: 0;
@@ -549,7 +669,7 @@
     .modal-dialog {
         width: min(100%, 520px);
         border-radius: var(--radius-lg);
-
+        box-shadow: var(--shadow-lg);
     }
 
     .modal-dialog--task {
@@ -564,9 +684,14 @@
         max-height: calc(100vh - 40px);
     }
 
+    .task-modal__description {
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
     .task-modal__header {
         display: flex;
-        align-items: flex-start;
+        align-items: start;
         justify-content: space-between;
         gap: 16px;
         margin-bottom: 18px;
@@ -578,30 +703,54 @@
     }
 
     .task-modal__header-main {
-        flex: 1;
+        display: grid;
+        gap: 10px;
     }
 
     .task-modal__title {
-        margin: 8px 0 4px;
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: var(--text);
-        line-height: 1.3;
+        margin: 0;
     }
 
     .task-modal__time {
         margin: 0;
-        font-size: 0.85rem;
-        color: var(--text-secondary);
+        color: var(--muted);
+        font-size: 0.94rem;
+        font-weight: 600;
+    }
+
+    .task-modal__content {
+        display: grid;
+        gap: 18px;
+    }
+
+    .task-modal__block {
+        display: grid;
+        gap: 10px;
+    }
+
+    .task-modal__label {
+        color: var(--muted);
+        font-size: 0.84rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .task-modal__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding-top: 4px;
+        padding-bottom: 4px;
     }
 
     .modal-close-button {
         width: 38px;
         height: 38px;
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--border);
         border-radius: 999px;
-        background: var(--surface);
-        color: var(--text-secondary);
+        background: var(--surface-2);
+        color: var(--muted);
         font: inherit;
         font-size: 1.25rem;
         line-height: 1;
@@ -615,141 +764,161 @@
         color: var(--text);
     }
 
-    .task-modal__content {
-        padding: 20px 20px;
-    }
-
-    .task-modal__block {
-        margin-bottom: 20px;
-    }
-
-    .task-modal__label {
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 8px;
-        display: block;
-    }
-
-    .task-modal__description {
-        color: var(--text);
-        line-height: 1.6;
-        font-size: 0.95rem;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-
-    .subtasks {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .subtask {
+    .task-filters {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 10px;
-        border-radius: 8px;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+        padding: 14px 16px;
+        background: var(--surface-3);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+    }
+
+    .task-filters__search-wrap {
+        position: relative;
+        flex: 1 1 200px;
+        min-width: 0;
+    }
+
+    .task-filters__search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        color: var(--muted);
+        pointer-events: none;
+    }
+
+    .task-filters__search {
+        width: 100%;
+        padding: 8px 12px 8px 36px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
         background: var(--surface);
+        color: var(--text);
+        font: inherit;
         font-size: 0.9rem;
+        outline: none;
+        transition: border-color var(--transition), box-shadow var(--transition);
     }
 
-    .subtask--checkable {
+    .task-filters__search:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+    }
+
+    .task-filters__select {
+        padding: 8px 32px 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-size: 0.9rem;
         cursor: pointer;
-        transition: all var(--transition);
-    }
-
-    .subtask--checkable:hover {
-        background: color-mix(in srgb, var(--primary) 8%, var(--surface));
-    }
-
-    .subtask.is-completed {
-        opacity: 0.65;
-    }
-
-    .subtask__left {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex: 1;
-        min-width: 0;
-    }
-
-    .subtask__text {
-        flex: 1;
-        min-width: 0;
-        word-break: break-word;
-    }
-
-    .subtask.is-completed .subtask__text {
-        text-decoration: line-through;
-    }
-
-    .subtask input[type="checkbox"] {
-        cursor: pointer;
+        outline: none;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2363708a'%3E%3Cpath fill-rule='evenodd' d='M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z' clip-rule='evenodd'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 16px;
+        transition: border-color var(--transition), box-shadow var(--transition);
         flex-shrink: 0;
     }
 
-    .task-modal__actions {
+    .task-filters__select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+    }
+
+    .tasks-no-results {
         display: flex;
-        flex-wrap: wrap;
+        flex-direction: column;
+        align-items: center;
         gap: 10px;
-        padding: 16px 20px;
-        border-top: 1.5px solid var(--border-color);
+        padding: 40px 20px;
+        color: var(--muted);
+        text-align: center;
+        margin-top: 8px;
+    }
+
+    .tasks-no-results svg {
+        width: 40px;
+        height: 40px;
+        opacity: 0.45;
+    }
+
+    .tasks-no-results p {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+
+    .home-footer {
+        margin-top: 24px;
+        padding: 18px 0 4px;
+    }
+
+    .home-footer__text {
+        margin: 0;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.92rem;
     }
 
     @media (max-width: 640px) {
-        .modal-dialog, .modal-dialog--task {
+        .hero-stats {
+            flex-direction: column;
+        }
+    }
+
+    @media (max-width: 920px) {
+        .section-panel__summary {
+            flex-wrap: wrap;
+        }
+
+        .section-panel__actions {
+            width: 100%;
+            margin: 0;
+        }
+
+        .task-preview-card__top {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .task-preview-card__time {
+            white-space: normal;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .modal-backdrop {
+            align-items: flex-end;
+            padding: 12px;
+        }
+
+        .modal-dialog,
+        .modal-dialog--task {
             width: 100%;
             max-height: calc(100vh - 24px);
         }
 
-        .task-modal__actions .button {
+        .task-modal__body {
+            max-height: calc(100vh - 24px);
+        }
+
+        .task-modal__actions .button,
+        .section-panel__actions .button {
             width: 100%;
         }
     }
-
-    /* Confirm Modal */
-    .confirm-modal__dialog {
-        background: var(--surface);
-        padding: 24px;
-        border-radius: var(--radius-lg);
-    }
-
-    .confirm-modal__content {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .confirm-modal__title {
-        margin: 0;
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: var(--text);
-    }
-
-    .confirm-modal__text {
-        margin: 0;
-        font-size: 0.95rem;
-        color: var(--text-secondary);
-        line-height: 1.6;
-    }
-
-    .confirm-modal__actions {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-    }
-
-    .confirm-modal__actions .button {
-        min-width: 100px;
-    }
 </style>
-
 
 <script>
     function getCookie(name) {
@@ -767,614 +936,192 @@
         return cookieValue;
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        // Toast notification function
-        function showToast(message, type = 'success') {
-            const toastArea = document.getElementById('toast-area');
-            if (!toastArea) return;
+    function showSubtasksAlert(message, type) {
+        const area = document.getElementById('toast-area');
+        if (!area) return;
 
-            const icons = {
-                success: '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>',
-                danger: '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>',
-                warning: '<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>',
-                info: '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>'
-            };
+        const icons = {
+            success: '<path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>',
+            danger:  '<path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/>',
+        };
 
-            const toast = document.createElement('div');
-            toast.className = `toast toast--${type}`;
-            toast.role = 'alert';
-            toast.innerHTML = `
-                <svg class="toast__icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    ${icons[type] || icons.info}
-                </svg>
-                <span class="toast__body">${message}</span>
-                <button type="button" class="toast__close" aria-label="Закрыть">
-                    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                    </svg>
-                </button>
-            `;
+        const toast = document.createElement('div');
+        toast.className = `toast toast--${type}`;
+        toast.setAttribute('role', 'alert');
+        toast.style.cssText = 'position:relative;overflow:hidden;';
+        toast.innerHTML = `
+            <svg class="toast__icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">${icons[type] || icons.danger}</svg>
+            <span class="toast__body">${message}</span>
+            <button type="button" class="toast__close" aria-label="Закрыть">×</button>
+            <span class="toast__progress"></span>
+        `;
 
-            toastArea.appendChild(toast);
+        toast.querySelector('.toast__close').addEventListener('click', function () { window.dismissToast(toast); });
+        area.appendChild(toast);
+        setTimeout(function () { if (toast.isConnected) window.dismissToast(toast); }, 4200);
+    }
 
-            const closeBtn = toast.querySelector('.toast__close');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', function () { window.dismissToast(toast); });
+    function updateSubtaskRow(row, isCompleted) {
+        const badge = row.querySelector('[data-subtask-badge]');
+        const text = row.querySelector('[data-subtask-text]');
+
+        row.classList.toggle('is-completed', isCompleted);
+
+        if (badge) {
+            badge.classList.remove('badge--success', 'badge--muted');
+            badge.classList.add(isCompleted ? 'badge--success' : 'badge--muted');
+            badge.textContent = isCompleted ? 'Выполнено' : 'Не выполнено';
+        }
+
+        if (text) {
+            text.style.textDecoration = isCompleted ? 'line-through' : 'none';
+            text.style.opacity = isCompleted ? '0.72' : '1';
+        }
+    }
+
+    function toggleSubtask(checkbox) {
+        const subtaskId = checkbox.dataset.subtaskId;
+        const allRows = document.querySelectorAll(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
+        const allCheckboxes = document.querySelectorAll(`.subtask-checkbox[data-subtask-id="${subtaskId}"]`);
+        const newState = checkbox.checked;
+
+        allCheckboxes.forEach(function (input) {
+            input.disabled = true;
+        });
+
+        fetch(`/subtask/${subtaskId}/toggle/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
             }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                allCheckboxes.forEach(function (input) {
+                    input.checked = data.is_completed;
+                });
 
-            setTimeout(function () {
-                if (toast.isConnected) { window.dismissToast(toast); }
-            }, 5000);
-        }
+                allRows.forEach(function (row) {
+                    updateSubtaskRow(row, data.is_completed);
+                });
 
-        // Parse task data
-        const tasksDataEl = document.getElementById('tasks-data');
-        let tasksData = tasksDataEl ? JSON.parse(tasksDataEl.textContent) : { now: new Date().toISOString(), tasks: [], completed_tasks: [] };
-        let now = new Date(tasksData.now);
+                if (data.parent_task_id !== undefined) {
+                    const badge = document.querySelector(`[data-task-pending-badge="${data.parent_task_id}"]`);
+                    if (badge) {
+                        if (data.pending_count > 0) {
+                            badge.className = 'badge badge--muted';
+                            badge.textContent = `Подзадач: ${data.pending_count}`;
+                        } else {
+                            badge.className = 'badge badge--success';
+                            badge.textContent = 'Готово к выполнению';
+                        }
+                    }
 
-        // Check if we need to open a modal after reload
-        const taskIdToOpen = sessionStorage.getItem('openTaskModal');
-        if (taskIdToOpen) {
-            sessionStorage.removeItem('openTaskModal');
-        }
+                    const subtaskCountEl = document.getElementById('active-subtask-count');
+                    if (subtaskCountEl) {
+                        const delta = data.is_completed ? -1 : 1;
+                        subtaskCountEl.textContent = Math.max(0, (parseInt(subtaskCountEl.textContent, 10) || 0) + delta);
+                    }
+                }
+            } else {
+                allCheckboxes.forEach(function (input) {
+                    input.checked = !newState;
+                });
+                showSubtasksAlert(data.message || 'Не удалось обновить статус подзадачи.', 'danger');
+            }
+        })
+        .catch(() => {
+            allCheckboxes.forEach(function (input) {
+                input.checked = !newState;
+            });
+            showSubtasksAlert('Ошибка при обновлении подзадачи.', 'danger');
+        })
+        .finally(() => {
+            allCheckboxes.forEach(function (input) {
+                input.disabled = false;
+            });
+        });
+    }
+
+    function generateSubtasks(button) {
+        const taskId = button.dataset.taskId;
+        const taskTitle = button.dataset.taskTitle;
+        const oldText = button.innerHTML;
+
+        button.disabled = true;
+        button.innerHTML = 'Генерация...';
+
+        fetch('{% url "api_generate_subtasks" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                task_id: taskId,
+                task_title: taskTitle
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showSubtasksAlert('Подзадачи успешно сгенерированы! Обнови страницу, чтобы увидеть их.', 'success');
+            } else {
+                showSubtasksAlert(data.message || 'Ошибка генерации подзадач.', 'danger');
+            }
+        })
+        .catch(() => {
+            showSubtasksAlert('Произошла ошибка при запросе к серверу.', 'danger');
+        })
+        .finally(() => {
+            button.disabled = false;
+            button.innerHTML = oldText;
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-prevent-details-toggle]').forEach(function (element) {
+            element.addEventListener('click', function (event) {
+                event.stopPropagation();
+            });
+        });
 
         function openTaskModal(modal) {
-            if (!modal) return;
+            if (!modal) {
+                return;
+            }
+
             modal.classList.add('is-open');
             modal.setAttribute('aria-hidden', 'false');
             document.body.style.overflow = 'hidden';
         }
 
         function closeTaskModal(modal) {
-            if (!modal) return;
+            if (!modal) {
+                return;
+            }
+
             modal.classList.remove('is-open');
             modal.setAttribute('aria-hidden', 'true');
             document.body.style.overflow = '';
-            sessionStorage.removeItem('openedTaskId');
         }
 
-        function openTaskModalWithData(task) {
-            const container = document.getElementById('task-modals-container');
-            const modalId = `task-modal-${task.id}`;
-            let modal = document.getElementById(modalId);
+        document.querySelectorAll('.js-task-open').forEach(function (card) {
+            const targetId = card.dataset.modalTarget;
+            const modal = document.getElementById(targetId);
 
-            if (!modal) {
-                const taskTypeLabel = task.is_completed
-                    ? 'Выполненная задача'
-                    : task.task_list === 'urgent'
-                    ? 'Срочная задача'
-                    : task.task_list === 'planned'
-                    ? 'Запланированная задача'
-                    : 'Актуальная задача';
+            card.addEventListener('click', function () {
+                openTaskModal(modal);
+            });
 
-                const descriptionContent = task.description
-                    ? `<p class="task-modal__description" style="margin: 0;">${task.description}</p>`
-                    : '';
-
-                const subtasksContent = task.subtasks && task.subtasks.length > 0
-                    ? `<div class="subtasks">
-                        ${task.subtasks.map(subtask => `
-                            <div class="subtask subtask--checkable ${subtask.is_completed ? 'is-completed' : ''}" data-subtask-row data-subtask-id="${subtask.id}" data-parent-task-id="${task.id}">
-                                <div class="subtask__left">
-                                    <input type="checkbox" class="subtask-checkbox" data-subtask-id="${subtask.id}" data-parent-task-id="${task.id}" ${subtask.is_completed ? 'checked' : ''}>
-                                    <span class="subtask__text" data-subtask-text>${subtask.title}</span>
-                                </div>
-                                <span class="badge ${subtask.is_completed ? 'badge--success' : 'badge--muted'}" data-subtask-badge>
-                                    ${subtask.is_completed ? 'Выполнено' : 'Не выполнено'}
-                                </span>
-                            </div>
-                        `).join('')}
-                      </div>`
-                    : '<p class="muted" style="margin: 0;">У этой задачи пока нет подзадач.</p>';
-
-                const completeButton = task.is_completed
-                    ? `<button type="button" class="button button--primary button--small js-complete-task-modal" data-task-id="${task.id}">Восстановить</button>`
-                    : `<button type="button" class="button button--success button--small js-complete-task-modal" data-task-id="${task.id}">Завершить задачу</button>`;
-
-                const modalHtml = `
-                    <div class="modal-backdrop task-modal" id="${modalId}" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog--task panel panel--glass" role="dialog" aria-modal="true" aria-labelledby="task-modal-title-${task.id}">
-                            <div class="panel__body task-modal__body">
-                                <div class="task-modal__header">
-                                    <div class="task-modal__header-main">
-                                        <div class="badge badge--muted" style="width: fit-content;">
-                                            ${taskTypeLabel}
-                                        </div>
-                                        <h3 id="task-modal-title-${task.id}" class="task-modal__title">
-                                            ${task.title}
-                                        </h3>
-                                        <p class="task-modal__time">
-                                            ${task.due_date_display}
-                                        </p>
-                                    </div>
-                                    <button type="button" class="modal-close-button js-close-task-modal" aria-label="Закрыть окно">×</button>
-                                </div>
-                                <div class="task-modal__content">
-                                    <div class="task-modal__block">
-                                        <div class="task-modal__label">Описание</div>
-                                        ${descriptionContent || '<p class="muted" style="margin: 0;">Нет описания</p>'}
-                                    </div>
-                                    <div class="task-modal__block">
-                                        <div class="task-modal__label">Подзадачи</div>
-                                        ${subtasksContent}
-                                    </div>
-                                    <div class="task-modal__actions">
-                                        ${completeButton}
-                                        <a href="/task/${task.id}/edit/" class="button button--primary button--small">Редактировать</a>
-                                        <button type="button" class="button button--primary button--small js-generate-subtasks" data-task-id="${task.id}" data-task-title="${task.title.replace(/"/g, '&quot;')}">Сгенерировать подзадачи</button>
-                                        <button type="button" class="button button--danger button--small js-delete-task-modal" data-task-id="${task.id}">Удалить</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                container.insertAdjacentHTML('beforeend', modalHtml);
-                modal = document.getElementById(modalId);
-
-                modal.querySelector('.js-close-task-modal').addEventListener('click', function () {
-                    closeTaskModal(modal);
-                });
-
-                modal.addEventListener('click', function (event) {
-                    if (event.target === modal) {
-                        closeTaskModal(modal);
-                    }
-                });
-
-                // Attach subtask checkbox listeners
-                modal.querySelectorAll('.subtask-checkbox').forEach(function (checkbox) {
-                    checkbox.addEventListener('click', function (event) {
-                        event.stopPropagation();
-                    });
-
-                    checkbox.addEventListener('change', function () {
-                        const subtaskId = this.dataset.subtaskId;
-                        const isChecked = this.checked;
-
-                        fetch(`/subtask/${subtaskId}/toggle/`, {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRFToken': getCookie('csrftoken')
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                const row = document.querySelector(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
-                                if (row) {
-                                    row.classList.toggle('is-completed', data.is_completed);
-                                    const badge = row.querySelector('[data-subtask-badge]');
-                                    if (badge) {
-                                        badge.className = data.is_completed ? 'badge badge--success' : 'badge badge--muted';
-                                        badge.textContent = data.is_completed ? 'Выполнено' : 'Не выполнено';
-                                    }
-                                    const text = row.querySelector('[data-subtask-text]');
-                                    if (text) {
-                                        text.style.textDecoration = data.is_completed ? 'line-through' : 'none';
-                                        text.style.opacity = data.is_completed ? '0.72' : '1';
-                                    }
-                                }
-                            }
-                        });
-                    });
-                });
-
-                // Attach generate subtasks handler
-                const generateBtn = modal.querySelector('.js-generate-subtasks');
-                if (generateBtn) {
-                    generateBtn.addEventListener('click', function (event) {
-                        event.preventDefault();
-                        event.stopPropagation();
-
-                        const taskId = this.dataset.taskId;
-                        const taskTitle = this.dataset.taskTitle;
-                        const oldText = this.textContent;
-
-                        this.disabled = true;
-                        this.textContent = 'Генерация...';
-
-                        fetch('{% url "api_generate_subtasks" %}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': getCookie('csrftoken')
-                            },
-                            body: JSON.stringify({
-                                task_id: taskId,
-                                task_title: taskTitle
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                showToast('Подзадачи успешно сгенерированы!', 'success');
-
-                                // Fetch updated subtasks from API
-                                return fetch(`/api/tasks/${taskId}/subtasks/`);
-                            } else {
-                                throw new Error(data.message || 'Ошибка генерации подзадач.');
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(subtasksData => {
-                            // Update task data with new subtasks
-                            const taskIndex = tasksData.tasks.findIndex(t => t.id === parseInt(taskId));
-                            if (taskIndex >= 0) {
-                                tasksData.tasks[taskIndex].subtasks = subtasksData.subtasks;
-                                // Update pending subtask count
-                                const pendingCount = subtasksData.subtasks.filter(s => !s.is_completed).length;
-                                tasksData.tasks[taskIndex].pending_subtask_count = pendingCount;
-
-                                // Update task item in the list if it's visible
-                                const taskItemInList = document.querySelector(`.js-task-open[data-modal-target="task-modal-${taskId}"]`);
-                                if (taskItemInList) {
-                                    const task = tasksData.tasks[taskIndex];
-                                    const isOverdue = !task.is_completed && getTaskDayOnly(task.due_date) < today;
-                                    const badgeHtml = isOverdue
-                                        ? `<span class="badge" style="background: color-mix(in srgb, var(--danger) 14%, var(--surface)); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));">Просрочено</span>`
-                                        : pendingCount > 0
-                                        ? `<span class="badge badge--muted">Подзадач: ${pendingCount}</span>`
-                                        : `<span class="badge badge--success">Готово к выполнению</span>`;
-                                    const bottomSection = taskItemInList.querySelector('.task-item__bottom');
-                                    if (bottomSection) {
-                                        bottomSection.innerHTML = badgeHtml + '<span>Нажми, чтобы открыть</span>';
-                                    }
-                                }
-                            }
-
-                            // Update subtasks content in the modal without closing it
-                            const contentBlock = modal.querySelector('.task-modal__content');
-                            const blocks = contentBlock ? contentBlock.querySelectorAll('.task-modal__block') : [];
-                            const subtasksBlock = blocks.length > 1 ? blocks[1] : null;
-
-                            if (subtasksBlock) {
-                                const subtasksContent = subtasksData.subtasks && subtasksData.subtasks.length > 0
-                                    ? `<div class="subtasks">
-                                        ${subtasksData.subtasks.map(subtask => `
-                                            <div class="subtask subtask--checkable ${subtask.is_completed ? 'is-completed' : ''}" data-subtask-row data-subtask-id="${subtask.id}" data-parent-task-id="${taskId}">
-                                                <div class="subtask__left">
-                                                    <input type="checkbox" class="subtask-checkbox" data-subtask-id="${subtask.id}" data-parent-task-id="${taskId}" ${subtask.is_completed ? 'checked' : ''}>
-                                                    <span class="subtask__text" data-subtask-text>${subtask.title}</span>
-                                                </div>
-                                                <span class="badge ${subtask.is_completed ? 'badge--success' : 'badge--muted'}" data-subtask-badge>
-                                                    ${subtask.is_completed ? 'Выполнено' : 'Не выполнено'}
-                                                </span>
-                                            </div>
-                                        `).join('')}
-                                      </div>`
-                                    : '<p class="muted" style="margin: 0;">У этой задачи пока нет подзадач.</p>';
-
-                                subtasksBlock.innerHTML = `<div class="task-modal__label">Подзадачи</div>${subtasksContent}`;
-
-                                // Re-attach checkbox listeners for new subtasks
-                                subtasksBlock.querySelectorAll('.subtask-checkbox').forEach(function (checkbox) {
-                                    checkbox.addEventListener('click', function (event) {
-                                        event.stopPropagation();
-                                    });
-
-                                    checkbox.addEventListener('change', function () {
-                                        const subtaskId = this.dataset.subtaskId;
-                                        fetch(`/subtask/${subtaskId}/toggle/`, {
-                                            method: 'POST',
-                                            headers: {
-                                                'X-CSRFToken': getCookie('csrftoken')
-                                            }
-                                        })
-                                        .then(response => response.json())
-                                        .then(data => {
-                                            if (data.status === 'success') {
-                                                const row = document.querySelector(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
-                                                if (row) {
-                                                    row.classList.toggle('is-completed', data.is_completed);
-                                                    const badge = row.querySelector('[data-subtask-badge]');
-                                                    if (badge) {
-                                                        badge.className = data.is_completed ? 'badge badge--success' : 'badge badge--muted';
-                                                        badge.textContent = data.is_completed ? 'Выполнено' : 'Не выполнено';
-                                                    }
-                                                    const text = row.querySelector('[data-subtask-text]');
-                                                    if (text) {
-                                                        text.style.textDecoration = data.is_completed ? 'line-through' : 'none';
-                                                        text.style.opacity = data.is_completed ? '0.72' : '1';
-                                                    }
-                                                }
-                                            }
-                                        });
-                                    });
-                                });
-                            }
-                        })
-                        .catch((error) => {
-                            showToast(error.message || 'Произошла ошибка.', 'danger');
-                        })
-                        .finally(() => {
-                            this.disabled = false;
-                            this.textContent = oldText;
-                        });
-                    });
+            card.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openTaskModal(modal);
                 }
-            }
-
-            // Attach complete task handler (outside if block so it works for existing modals too)
-            const completeBtn = modal.querySelector('.js-complete-task-modal');
-            if (completeBtn) {
-                completeBtn.addEventListener('click', function (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    const taskId = this.dataset.taskId;
-                    const wasCompleted = task.is_completed;
-
-                    closeTaskModal(modal);
-                    showToast('Задача ' + (wasCompleted ? 'восстанавливается' : 'завершается') + '...', 'success');
-
-                    // Redirect to complete/restore endpoint after a short delay
-                    setTimeout(() => {
-                        window.location.href = `/task/${taskId}/complete/`;
-                    }, 100);
-                });
-            }
-
-            // Attach delete task handler (outside if block so it works for existing modals too)
-            const deleteBtn = modal.querySelector('.js-delete-task-modal');
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', function (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    if (confirm('Вы уверены, что хотите удалить эту задачу?')) {
-                        window.location.href = `/task/${task.id}/delete/`;
-                    }
-                });
-            }
-
-            // Save opened task ID for restoration on page reload
-            sessionStorage.setItem('openedTaskId', task.id.toString());
-            openTaskModal(modal);
-        }
-
-        function getTaskDayOnly(dateStr) {
-            const d = new Date(dateStr);
-            return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        }
-
-        const nowDate = new Date(now);
-        const today = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
-
-        function getTasksForView(viewType) {
-            const allTasks = [...tasksData.tasks, ...tasksData.completed_tasks];
-
-            switch (viewType) {
-                case 'active':
-                    return allTasks.filter(t => {
-                        if (t.is_completed || t.task_list !== 'active') return false;
-                        const dueDay = getTaskDayOnly(t.due_date);
-                        return dueDay >= today;
-                    });
-
-                case 'planned':
-                    return allTasks.filter(t => {
-                        if (t.is_completed || t.task_list !== 'planned') return false;
-                        const dueDay = getTaskDayOnly(t.due_date);
-                        return dueDay >= today;
-                    });
-
-                case 'favorites':
-                    return allTasks.filter(t => !t.is_completed && t.is_favorite);
-
-                case 'urgent':
-                    return allTasks.filter(t => {
-                        if (t.is_completed || t.task_list !== 'urgent') return false;
-                        const dueDay = getTaskDayOnly(t.due_date);
-                        return dueDay >= today;
-                    });
-
-                case 'completed':
-                    return allTasks.filter(t => t.is_completed);
-
-                case 'overdue':
-                    return allTasks.filter(t => {
-                        if (t.is_completed) return false;
-                        const dueDay = getTaskDayOnly(t.due_date);
-                        return dueDay < today;
-                    });
-
-                default:
-                    return [];
-            }
-        }
-
-        function renderTaskItem(task) {
-            const categoryHtml = task.category
-                ? `<span class="task-item__category" style="background-color: ${task.category.color}1a; color: ${task.category.color};">
-                     <span style="width: 6px; height: 6px; border-radius: 999px; background-color: ${task.category.color}; display: inline-block;"></span>
-                     ${task.category.name}
-                   </span>`
-                : '';
-
-            const isOverdue = !task.is_completed && getTaskDayOnly(task.due_date) < today;
-            const badgeHtml = isOverdue
-                ? `<span class="badge" style="background: color-mix(in srgb, var(--danger) 14%, var(--surface)); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));">Просрочено</span>`
-                : task.pending_subtask_count > 0
-                ? `<span class="badge badge--muted">Подзадач: ${task.pending_subtask_count}</span>`
-                : `<span class="badge badge--success">Готово к выполнению</span>`;
-
-            const titleClass = task.is_completed ? 'task-item--completed' : '';
-
-            const favoriteFlag = task.is_favorite ? `<svg style="width: 18px; height: 18px; flex-shrink: 0;" fill="none" stroke="var(--warning)" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>` : '';
-
-            const html = `
-                <article class="task-item ${titleClass} js-task-open" data-modal-target="task-modal-${task.id}" tabindex="0">
-                    <div class="task-item__top">
-                        <div class="task-item__title-wrap">
-                            <h3 class="task-item__title">${task.is_completed ? '<s>' : ''}${task.title}${task.is_completed ? '</s>' : ''}</h3>
-                            ${categoryHtml}
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            ${favoriteFlag}
-                            <time class="task-item__time">${task.due_date_display}</time>
-                        </div>
-                    </div>
-                    <div class="task-item__bottom">
-                        ${badgeHtml}
-                        <span>Нажми, чтобы открыть</span>
-                    </div>
-                </article>
-            `;
-            return html;
-        }
-
-        function showTiles() {
-            const tilesView = document.getElementById('task-tiles-view');
-            const listView = document.getElementById('task-list-view');
-            const topbarTitle = document.getElementById('topbar-title');
-            const closeBtn = document.getElementById('topbar-close-btn');
-
-            if (tilesView) tilesView.style.display = 'grid';
-            if (listView) listView.style.display = 'none';
-            if (topbarTitle) topbarTitle.textContent = 'Задачи';
-            if (closeBtn) closeBtn.style.display = 'none';
-            window.scrollTo(0, 0);
-        }
-
-        function showFilteredView(viewType) {
-            const tilesView = document.getElementById('task-tiles-view');
-            const listView = document.getElementById('task-list-view');
-            const filteredTasks = document.getElementById('filtered-tasks');
-            const viewTitle = document.getElementById('view-title');
-            const topbarTitle = document.getElementById('topbar-title');
-            const closeBtn = document.getElementById('topbar-close-btn');
-            const clearBtn = document.getElementById('clear-completed-btn');
-
-            const viewLabels = {
-                'active': 'Активные',
-                'planned': 'В планах',
-                'favorites': 'Избранные',
-                'urgent': 'Срочные',
-                'completed': 'Выполненные',
-                'overdue': 'Просроченные'
-            };
-
-            const tasks = getTasksForView(viewType);
-
-            if (tilesView) tilesView.style.display = 'none';
-            if (listView) listView.style.display = 'block';
-
-            const label = viewLabels[viewType] || 'Задачи';
-            viewTitle.textContent = label;
-            if (topbarTitle) topbarTitle.textContent = 'Задачи (' + label + ')';
-            if (closeBtn) closeBtn.style.display = 'flex';
-            if (clearBtn) clearBtn.style.display = viewType === 'completed' ? 'inline-flex' : 'none';
-
-            if (tasks.length === 0) {
-                filteredTasks.innerHTML = `
-                    <div class="empty-state">
-                        <svg class="empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 15.803a7.5 7.5 0 0 0 10.607 0Z"/></svg>
-                        <h3 class="empty-state__title">Нет задач</h3>
-                        <p class="empty-state__text">В этой категории пока нет задач</p>
-                    </div>
-                `;
-            } else {
-                filteredTasks.innerHTML = `<div class="task-list">${tasks.map(renderTaskItem).join('')}</div>`;
-
-                // Re-attach event listeners for newly rendered tasks
-                filteredTasks.querySelectorAll('.js-task-open').forEach(function (card) {
-                    card.addEventListener('click', function () {
-                        const taskId = this.dataset.modalTarget.split('-').pop();
-                        const task = [...tasksData.tasks, ...tasksData.completed_tasks].find(t => t.id === parseInt(taskId));
-                        if (task) {
-                            openTaskModalWithData(task);
-                        }
-                    });
-                });
-            }
-
-            window.scrollTo(0, 0);
-        }
-
-        // Tile click handlers
-        document.querySelectorAll('.task-tile').forEach(function (tile) {
-            tile.addEventListener('click', function () {
-                const viewType = this.dataset.view;
-                sessionStorage.setItem('selectedTaskView', viewType);
-                showFilteredView(viewType);
             });
         });
-
-        // Restore previous view and modal on page load (synchronously, no setTimeout to avoid flashing)
-        const reloadFromSubtaskGen = sessionStorage.getItem('reloadFromSubtaskGen');
-        const viewToShow = sessionStorage.getItem('selectedTaskView');
-        const openedTaskId = sessionStorage.getItem('openedTaskId');
-
-        if (reloadFromSubtaskGen) {
-            // After subtask generation - always restore the view
-            sessionStorage.removeItem('reloadFromSubtaskGen');
-            if (viewToShow) {
-                showFilteredView(viewToShow);
-
-                // If there was an open modal, restore it
-                if (openedTaskId) {
-                    const task = [...tasksData.tasks, ...tasksData.completed_tasks].find(t => t.id === parseInt(openedTaskId));
-                    if (task) {
-                        openTaskModalWithData(task);
-                    }
-                }
-            }
-        } else if (taskIdToOpen) {
-            // Open modal if specified (legacy, shouldn't happen)
-            const task = [...tasksData.tasks, ...tasksData.completed_tasks].find(t => t.id === parseInt(taskIdToOpen));
-            if (task) {
-                openTaskModalWithData(task);
-            }
-        } else if (openedTaskId) {
-            // Restore opened task modal on page reload
-            if (viewToShow) {
-                showFilteredView(viewToShow);
-
-                // Open the modal
-                const task = [...tasksData.tasks, ...tasksData.completed_tasks].find(t => t.id === parseInt(openedTaskId));
-                if (task) {
-                    openTaskModalWithData(task);
-                }
-            } else {
-                // If no view saved, open the modal directly
-                const task = [...tasksData.tasks, ...tasksData.completed_tasks].find(t => t.id === parseInt(openedTaskId));
-                if (task) {
-                    openTaskModalWithData(task);
-                }
-            }
-        } else if (viewToShow) {
-            // Restore previously viewed list on normal page load
-            showFilteredView(viewToShow);
-        } else {
-            // Default: show tiles
-            showTiles();
-        }
-
-        // Back button handler (hidden now)
-        const backButton = document.getElementById('back-to-tiles');
-        if (backButton) {
-            backButton.addEventListener('click', function () {
-                const tilesView = document.getElementById('task-tiles-view');
-                const listView = document.getElementById('task-list-view');
-                tilesView.style.display = 'grid';
-                listView.style.display = 'none';
-                sessionStorage.removeItem('selectedTaskView');
-                window.scrollTo(0, 0);
-            });
-        }
-
-        // Close list view button handler (topbar close button)
-        const closeListBtn = document.getElementById('topbar-close-btn');
-        if (closeListBtn) {
-            closeListBtn.addEventListener('click', function () {
-                showTiles();
-                sessionStorage.removeItem('selectedTaskView');
-                selectedCategoryId = null;
-                closeCategoryModal();
-            });
-        }
 
         document.querySelectorAll('.js-close-task-modal').forEach(function (button) {
             button.addEventListener('click', function () {
@@ -1390,319 +1137,162 @@
             });
         });
 
+        document.querySelectorAll('.js-generate-subtasks').forEach(function (button) {
+            button.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                generateSubtasks(button);
+            });
+        });
+
         document.querySelectorAll('.subtask-checkbox').forEach(function (checkbox) {
             checkbox.addEventListener('click', function (event) {
                 event.stopPropagation();
             });
 
-            checkbox.addEventListener('change', function () {
-                const subtaskId = this.dataset.subtaskId;
-                const isChecked = this.checked;
-
-                fetch(`/subtask/${subtaskId}/toggle/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken')
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        const row = document.querySelector(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
-                        if (row) {
-                            row.classList.toggle('is-completed', data.is_completed);
-                            const badge = row.querySelector('[data-subtask-badge]');
-                            if (badge) {
-                                badge.className = data.is_completed ? 'badge badge--success' : 'badge badge--muted';
-                                badge.textContent = data.is_completed ? 'Выполнено' : 'Не выполнено';
-                            }
-                            const text = row.querySelector('[data-subtask-text]');
-                            if (text) {
-                                text.style.textDecoration = data.is_completed ? 'line-through' : 'none';
-                                text.style.opacity = data.is_completed ? '0.72' : '1';
-                            }
-                        }
-                    }
-                });
-            });
-        });
-
-        document.querySelectorAll('.js-generate-subtasks').forEach(function (button) {
-            button.addEventListener('click', function (event) {
-                event.preventDefault();
+            checkbox.addEventListener('change', function (event) {
                 event.stopPropagation();
-
-                const taskId = this.dataset.taskId;
-                const taskTitle = this.dataset.taskTitle;
-                const oldText = this.textContent;
-
-                this.disabled = true;
-                this.textContent = 'Генерация...';
-
-                fetch('{% url "api_generate_subtasks" %}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: JSON.stringify({
-                        task_id: taskId,
-                        task_title: taskTitle
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        showToast('Подзадачи успешно сгенерированы!', 'success');
-                    } else {
-                        showToast(data.message || 'Ошибка генерации подзадач.', 'danger');
-                    }
-                })
-                .catch(() => {
-                    showToast('Произошла ошибка.', 'danger');
-                })
-                .finally(() => {
-                    this.disabled = false;
-                    this.textContent = oldText;
-                });
+                toggleSubtask(checkbox);
             });
         });
 
-        const confirmModal = document.getElementById('confirm-modal');
-        const confirmModalTitle = document.getElementById('confirm-modal-title');
-        const confirmModalText = document.getElementById('confirm-modal-text');
-        const confirmModalCancel = document.getElementById('confirm-modal-cancel');
-        const confirmModalConfirm = document.getElementById('confirm-modal-confirm');
-        let confirmAction = null;
-
-        function showConfirmModal(title, text, onConfirm) {
-            confirmModalTitle.textContent = title;
-            confirmModalText.textContent = text;
-            confirmAction = onConfirm;
-            confirmModal.classList.add('is-open');
-        }
-
-        function closeConfirmModal() {
-            confirmModal.classList.remove('is-open');
-            confirmAction = null;
-        }
-
-        confirmModalCancel.addEventListener('click', closeConfirmModal);
-        confirmModalConfirm.addEventListener('click', function () {
-            if (confirmAction) {
-                confirmAction();
-            }
-            closeConfirmModal();
+        document.querySelectorAll('[data-subtask-row]').forEach(function (row) {
+            row.addEventListener('click', function (event) {
+                event.stopPropagation();
+            });
         });
 
-        confirmModal.addEventListener('click', function (e) {
-            if (e.target === confirmModal) {
-                closeConfirmModal();
+        const clearCompletedForm = document.getElementById('clear-completed-form');
+        const clearCompletedModal = document.getElementById('clear-completed-modal');
+        const openClearCompletedModalButton = document.getElementById('open-clear-completed-modal');
+        const cancelClearCompletedModalButton = document.getElementById('cancel-clear-completed-modal');
+        const confirmClearCompletedModalButton = document.getElementById('confirm-clear-completed-modal');
+
+        function openClearCompletedModal() {
+            if (!clearCompletedModal) {
+                return;
             }
-        });
 
-        const clearCompletedBtn = document.getElementById('clear-completed-btn');
-        if (clearCompletedBtn) {
-            clearCompletedBtn.addEventListener('click', function () {
-                showConfirmModal(
-                    'Очистить список',
-                    'Вы уверены? Все выполненные задачи будут удалены.',
-                    function () {
-                        fetch('{% url "clear_completed_tasks" %}', {
-                            method: 'POST',
-                            headers: { 'X-CSRFToken': getCookie('csrftoken') }
-                        })
-                        .then(response => response.text())
-                        .then(() => {
-                            const completedCount = tasksData.completed_tasks.length;
+            clearCompletedModal.classList.add('is-open');
+            clearCompletedModal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
 
-                            // Update data
-                            tasksData.completed_tasks = [];
+            if (confirmClearCompletedModalButton) {
+                confirmClearCompletedModalButton.focus();
+            }
+        }
 
-                            // Update tile counter for completed tasks
-                            const completedTile = document.querySelector('.task-tile--completed');
-                            if (completedTile) {
-                                const countEl = completedTile.querySelector('.task-tile__count');
-                                if (countEl) {
-                                    countEl.textContent = '0';
-                                }
-                            }
+        function closeClearCompletedModal() {
+            if (!clearCompletedModal) {
+                return;
+            }
 
-                            // Re-render current view if showing completed list
-                            const currentView = sessionStorage.getItem('selectedTaskView');
-                            if (currentView === 'completed') {
-                                showFilteredView('completed');
-                            }
+            clearCompletedModal.classList.remove('is-open');
+            clearCompletedModal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
 
-                            showToast(`Удалено ${completedCount} задач!`, 'success');
-                        })
-                        .catch(err => {
-                            console.error('Error clearing completed tasks:', err);
-                            showToast('Ошибка при очистке списка.', 'danger');
-                        });
-                    }
-                );
+            if (openClearCompletedModalButton) {
+                openClearCompletedModalButton.focus();
+            }
+        }
+
+        if (openClearCompletedModalButton) {
+            openClearCompletedModalButton.addEventListener('click', function () {
+                openClearCompletedModal();
             });
         }
 
-        // Check every minute if date changed and sync tasks with database
-        let lastCheckedDate = today;
-        setInterval(function () {
-            const nowDate = new Date(now);
-            const currentDate = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
+        if (cancelClearCompletedModalButton) {
+            cancelClearCompletedModalButton.addEventListener('click', function () {
+                closeClearCompletedModal();
+            });
+        }
 
-            if (currentDate > lastCheckedDate) {
-                lastCheckedDate = currentDate;
-                today = currentDate;
+        if (confirmClearCompletedModalButton && clearCompletedForm) {
+            confirmClearCompletedModalButton.addEventListener('click', function () {
+                clearCompletedForm.submit();
+            });
+        }
 
-                // Update overdue tasks in database
-                fetch('{% url "update_overdue_tasks" %}', {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': getCookie('csrftoken') }
-                })
-                .catch(err => console.error('Error updating overdue tasks:', err));
-            }
-
-            // Refresh task data from database every minute
-            fetch('{% url "api_tasks_data" %}')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    tasksData.tasks = data.tasks;
-                    tasksData.completed_tasks = data.completed_tasks;
-                    now = new Date(data.now);
-
-                    // Get current view and refresh it
-                    const currentView = sessionStorage.getItem('selectedTaskView');
-                    if (currentView && currentView !== 'tiles') {
-                        showFilteredView(currentView);
-                    }
-
-                    // Update all tile counters
-                    const tiles = {
-                        'active': document.querySelector('.task-tile[data-view="active"] .task-tile__count'),
-                        'planned': document.querySelector('.task-tile[data-view="planned"] .task-tile__count'),
-                        'urgent': document.querySelector('.task-tile[data-view="urgent"] .task-tile__count'),
-                        'favorites': document.querySelector('.task-tile[data-view="favorites"] .task-tile__count'),
-                        'completed': document.querySelector('.task-tile[data-view="completed"] .task-tile__count'),
-                        'overdue': document.querySelector('.task-tile[data-view="overdue"] .task-tile__count')
-                    };
-
-                    Object.keys(tiles).forEach(viewType => {
-                        const countEl = tiles[viewType];
-                        if (countEl) {
-                            const count = getTasksForView(viewType).length;
-                            countEl.textContent = count;
-                        }
-                    });
+        if (clearCompletedModal) {
+            clearCompletedModal.addEventListener('click', function (event) {
+                if (event.target === clearCompletedModal) {
+                    closeClearCompletedModal();
                 }
-            })
-            .catch(err => console.error('Error fetching tasks data:', err));
-        }, 60000); // Check every 60 seconds
+            });
+        }
 
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
-                document.querySelectorAll('.task-modal').forEach(function (modal) {
+                if (clearCompletedModal && clearCompletedModal.classList.contains('is-open')) {
+                    closeClearCompletedModal();
+                }
+
+                document.querySelectorAll('.task-modal.is-open').forEach(function (modal) {
                     closeTaskModal(modal);
                 });
             }
         });
 
-        // Category filter logic
-        const categoryFilterToggle = document.getElementById('category-filter-toggle');
-        const categoryFilterModal = document.getElementById('category-filter-modal');
-        const taskTilesView = document.getElementById('task-tiles-view');
-        const taskListView = document.getElementById('task-list-view');
-        const filteredTasksContainer = document.getElementById('filtered-tasks');
+        // ── Filter & Sort ──────────────────────────────────────────────
+        (function () {
+            const list       = document.getElementById('active-task-list');
+            const noResults  = document.getElementById('tasks-no-results');
+            const searchEl   = document.getElementById('task-search');
+            const catEl      = document.getElementById('task-category-filter');
+            const sortEl     = document.getElementById('task-sort');
+            const resetBtn   = document.getElementById('tasks-reset-filters');
 
-        console.log('Category filter elements:', {
-            toggle: categoryFilterToggle,
-            modal: categoryFilterModal
-        });
+            if (!list) return;
 
-        let selectedCategoryId = null;
+            const cards = Array.from(list.querySelectorAll('.task-preview-card'));
 
-        function openCategoryModal() {
-            console.log('Opening category modal');
-            if (categoryFilterModal) {
-                categoryFilterModal.classList.add('is-open');
+            function applyFilters() {
+                const query = searchEl ? searchEl.value.trim().toLowerCase() : '';
+                const cat   = catEl   ? catEl.value   : '';
+                const sort  = sortEl  ? sortEl.value  : 'date-asc';
+
+                let visible = cards.filter(function (card) {
+                    const titleMatch = !query || card.dataset.title.includes(query);
+                    const catMatch   = !cat   || card.dataset.category === cat;
+                    return titleMatch && catMatch;
+                });
+
+                visible.sort(function (a, b) {
+                    if (sort === 'date-asc')   return Number(a.dataset.due) - Number(b.dataset.due);
+                    if (sort === 'date-desc')  return Number(b.dataset.due) - Number(a.dataset.due);
+                    if (sort === 'title-asc')  return a.dataset.title.localeCompare(b.dataset.title, 'ru');
+                    if (sort === 'title-desc') return b.dataset.title.localeCompare(a.dataset.title, 'ru');
+                    return 0;
+                });
+
+                const visibleSet = new Set(visible);
+                cards.forEach(function (card) {
+                    card.hidden = !visibleSet.has(card);
+                    const modal = document.getElementById(card.dataset.modalTarget);
+                    if (modal) modal.style.display = '';
+                });
+
+                visible.forEach(function (card, i) {
+                    list.appendChild(card);
+                });
+
+                if (noResults) noResults.style.display = visible.length === 0 ? 'flex' : 'none';
             }
-        }
 
-        function closeCategoryModal() {
-            if (categoryFilterModal) {
-                categoryFilterModal.classList.remove('is-open');
-            }
-        }
+            if (searchEl) searchEl.addEventListener('input', applyFilters);
+            if (catEl)    catEl.addEventListener('change', applyFilters);
+            if (sortEl)   sortEl.addEventListener('change', applyFilters);
 
-        function renderCategoryTasks(categoryId, categoryName) {
-            const categoryTasks = tasksData.tasks.filter(t => t.category && t.category.name === categoryName);
-            const completedCategoryTasks = tasksData.completed_tasks.filter(t => t.category && t.category.name === categoryName);
-            const allCategoryTasks = [...categoryTasks, ...completedCategoryTasks];
-
-            if (allCategoryTasks.length === 0) {
-                filteredTasksContainer.innerHTML = `
-                    <div class="empty-state">
-                        <svg class="empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 15.803a7.5 7.5 0 0 0 10.607 0Z"/></svg>
-                        <h3 class="empty-state__title">Нет задач</h3>
-                        <p class="empty-state__text">В этой категории пока нет задач</p>
-                    </div>
-                `;
-            } else {
-                filteredTasksContainer.innerHTML = `<div class="task-list">${allCategoryTasks.map(renderTaskItem).join('')}</div>`;
-
-                // Re-attach event listeners for newly rendered tasks
-                filteredTasksContainer.querySelectorAll('.js-task-open').forEach(function (card) {
-                    card.addEventListener('click', function () {
-                        const taskId = this.dataset.modalTarget.split('-').pop();
-                        const task = [...tasksData.tasks, ...tasksData.completed_tasks].find(t => t.id === parseInt(taskId));
-                        if (task) {
-                            openTaskModalWithData(task);
-                        }
-                    });
+            if (resetBtn) {
+                resetBtn.addEventListener('click', function () {
+                    if (searchEl) searchEl.value = '';
+                    if (catEl)    catEl.value    = '';
+                    if (sortEl)   sortEl.value   = 'date-asc';
+                    applyFilters();
                 });
             }
-
-            window.scrollTo(0, 0);
-        }
-
-        function showCategoryView(categoryId, categoryName) {
-            const topbarTitle = document.getElementById('topbar-title');
-            const closeBtn = document.getElementById('topbar-close-btn');
-
-            selectedCategoryId = categoryId;
-            taskTilesView.style.display = 'none';
-            taskListView.style.display = 'block';
-
-            document.getElementById('view-title').textContent = categoryName;
-            if (topbarTitle) topbarTitle.textContent = 'Задачи (' + categoryName + ')';
-            if (closeBtn) closeBtn.style.display = 'flex';
-
-            renderCategoryTasks(categoryId, categoryName);
-        }
-
-
-        categoryFilterToggle.addEventListener('click', openCategoryModal);
-
-        const categoryFilterCloseBtn = document.getElementById('category-filter-close');
-        if (categoryFilterCloseBtn) {
-            categoryFilterCloseBtn.addEventListener('click', closeCategoryModal);
-        }
-
-        document.querySelectorAll('#category-filter-modal .category-filter-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const categoryId = this.dataset.categoryId;
-                const categoryName = this.dataset.categoryName;
-                showCategoryView(categoryId, categoryName);
-                closeCategoryModal();
-            });
-        });
-
-        categoryFilterModal.addEventListener('click', function(e) {
-            if (e.target === categoryFilterModal) {
-                closeCategoryModal();
-            }
-        });
+        })();
     });
 </script>
 {% endblock %}

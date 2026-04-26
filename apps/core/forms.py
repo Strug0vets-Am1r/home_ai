@@ -8,7 +8,7 @@ from .models import Task, User, Category
 class TaskForm(forms.ModelForm):
     class Meta:
         model = Task
-        fields = ['title', 'description', 'due_date', 'category']
+        fields = ['title', 'description', 'due_date', 'category', 'is_favorite', 'task_list']
         widgets = {
             'title': forms.TextInput(attrs={'placeholder': 'Например: Приготовить пасту с креветками'}),
             'due_date': forms.DateTimeInput(
@@ -22,12 +22,16 @@ class TaskForm(forms.ModelForm):
                 }
             ),
             'category': forms.Select(attrs={'class': 'select'}),
+            'is_favorite': forms.CheckboxInput(),
+            'task_list': forms.HiddenInput(),
         }
         labels = {
             'title': 'Название задачи',
             'description': 'Описание',
             'due_date': 'Дата и время выполнения',
             'category': 'Категория',
+            'is_favorite': 'Добавить в избранное',
+            'task_list': 'Список',
         }
 
     def __init__(self, *args, user=None, **kwargs):

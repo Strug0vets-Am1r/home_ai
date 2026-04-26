@@ -2,22 +2,49 @@
 
 {% block title %}{{ title }}{% endblock %}
 
-{% block content %}
-<div class="hero task-form-hero">
+{% block topbar %}
+<div class="topbar">
     <div>
-        <div class="eyebrow">Задачи</div>
-        <h1 class="hero__title task-form-title">{{ title }}</h1>
+        <h1 class="topbar__title">{{ title }}</h1>
     </div>
-    <p class="hero__meta">
-        Заполни основные данные задачи, при необходимости добавь подзадачи вручную или сгенерируй их через AI.
-    </p>
+    <div class="topbar__actions">
+        <button type="button" id="favorite-toggle-btn" class="topbar__favorite-btn" title="Добавить в избранное">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+            </svg>
+            <span>В избранное</span>
+        </button>
+        <button type="button" onclick="window.history.back()" class="topbar__close-btn" title="Закрыть">×</button>
+    </div>
 </div>
+{% endblock %}
 
-<div class="panel panel--glass task-form-panel">
-    <div class="panel__body">
-        <form method="post" class="form-grid task-form-grid" id="task-form">
+{% block content %}
+
+<div class="task-creation-container">
+    <div class="task-list-selector">
+        <div class="task-list-selector__tiles">
+            <button type="button" class="task-list-tile" data-list="active" title="Активные задачи">
+                <svg class="task-list-tile__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                <span>Актуальные</span>
+            </button>
+            <button type="button" class="task-list-tile" data-list="urgent" title="Срочные задачи">
+                <svg class="task-list-tile__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><polyline points="12 10 12 13 14 15"/><line x1="5" y1="3" x2="2" y2="6"/><line x1="22" y1="6" x2="19" y2="3"/></svg>
+                <span>Срочные</span>
+            </button>
+            <button type="button" class="task-list-tile" data-list="planned" title="Запланированные задачи">
+                <svg class="task-list-tile__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span>В планах</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="task-form-wrapper">
+        <form method="post" class="task-form" id="task-form">
             {% csrf_token %}
             {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            <input type="hidden" id="selected-list" name="task_list" value="{% if task %}{{ task.task_list }}{% else %}active{% endif %}">
+            <input type="hidden" id="is-favorite-input" name="is_favorite" value="{% if task and task.is_favorite %}on{% else %}off{% endif %}">
 
             <div class="field">
                 <label class="field__label" for="{{ form.title.id_for_label }}">Название задачи</label>
@@ -42,10 +69,10 @@
                     </div>
 
                     <div class="subtasks-actions">
-                        <button type="button" class="button button--ghost button--small" id="generate-subtasks-btn">
+                        <button type="button" class="button button--primary button--small" id="generate-subtasks-btn">
                             Сгенерировать через AI
                         </button>
-                        <button type="button" class="button button--secondary button--small" id="add-subtask-btn">
+                        <button type="button" class="button button--success button--small" id="add-subtask-btn">
                             Добавить
                         </button>
                     </div>
@@ -112,7 +139,7 @@
                 <button type="submit" class="button button--success">Сохранить</button>
                 <a href="{% url 'home' %}" class="button button--danger">Отмена</a>
             </div>
-        </form>
+    </form>
     </div>
 </div>
 
@@ -182,80 +209,226 @@
 </div>
 
 <style>
-    body:has(#task-form) .page {
-        padding-top: 12px;
-        padding-bottom: 16px;
+    .task-creation-container {
+        display: grid;
+        gap: 28px;
+        max-width: 900px;
+        margin: 0 auto;
     }
 
-    .task-form-hero {
-        margin-bottom: 12px;
+    .task-list-selector {
+        display: grid;
+        gap: 16px;
+        background: var(--surface);
+        border: 1.5px solid var(--border-color);
+        border-radius: 16px;
+        padding: 28px;
+
     }
 
-    .task-form-title {
-        margin: 0;
-    }
-
-    .task-form-panel {
-        overflow: hidden;
-    }
-
-    .task-form-grid {
+    .task-list-selector__tiles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
         gap: 16px;
     }
 
-    .field {
-        gap: 8px;
-    }
-
-    .field__label,
-    .input,
-    .textarea,
-    .select,
-    .button {
-        font-size: 0.95rem;
-    }
-
-    .field__label {
+    .task-list-tile {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 24px 20px;
+        border: 2px solid;
+        border-radius: 12px;
+        color: var(--tile-color);
+        font-size: 0.9rem;
         font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition);
+        font-family: inherit;
+        min-height: 110px;
+
+        position: relative;
+        background: transparent;
+        --tile-color: #34d399;
+        border-color: #34d399;
+    }
+
+    .task-list-tile[data-list="active"] {
+        --tile-color: #34d399;
+        border-color: #34d399;
+    }
+
+    .task-list-tile[data-list="urgent"] {
+        --tile-color: #d946ef;
+        border-color: #d946ef;
+    }
+
+    .task-list-tile[data-list="planned"] {
+        --tile-color: #60a5fa;
+        border-color: #60a5fa;
+    }
+
+    .task-list-tile__icon {
+        width: 32px;
+        height: 32px;
+        flex-shrink: 0;
+        opacity: 0.7;
+        transition: all var(--transition);
+        color: var(--tile-color);
+    }
+
+    .task-list-tile:hover {
+        transform: translateY(-1px);
+    }
+
+    .task-list-tile.is-selected {
+        transform: translateY(-2px);
+
+    }
+
+    .task-list-tile[data-list="active"].is-selected {
+        background: color-mix(in srgb, #34d399 14%, var(--surface));
+        border-color: color-mix(in srgb, #34d399 24%, var(--border-color));
+    }
+
+    .task-list-tile[data-list="urgent"].is-selected {
+        background: color-mix(in srgb, #d946ef 14%, var(--surface));
+        border-color: color-mix(in srgb, #d946ef 24%, var(--border-color));
+    }
+
+    .task-list-tile[data-list="planned"].is-selected {
+        background: color-mix(in srgb, #60a5fa 14%, var(--surface));
+        border-color: color-mix(in srgb, #60a5fa 24%, var(--border-color));
+    }
+
+    .task-list-tile.is-selected .task-list-tile__icon {
+        opacity: 0.85;
+    }
+
+    .task-form-wrapper {
+        display: grid;
+        gap: 0;
+        background: var(--surface);
+        border: 1.5px solid var(--border-color);
+        border-radius: 16px;
+        padding: 32px;
+
+    }
+
+    .task-form {
+        display: grid;
+        gap: 18px;
+    }
+
+    .task-form .field {
+        display: grid;
+        gap: 10px;
+    }
+
+    .task-form .field__label {
+        font-weight: 600;
+        font-size: 1.05rem;
+        color: var(--text);
+    }
+
+    .task-form .input,
+    .task-form .textarea,
+    .task-form .select {
+        width: 100%;
+        font-size: 1.05rem;
+        padding: 14px 16px;
+        border: 1.5px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--text);
+        transition: all var(--transition);
+        line-height: 1.5;
+    }
+
+    .task-form .input:focus,
+    .task-form .textarea:focus,
+    .task-form .select:focus {
+        border-color: var(--primary);
+
+    }
+
+    .task-form .textarea {
+        min-height: 160px;
+        resize: none;
     }
 
     .task-form-subtasks-head {
-        margin: 0 0 8px;
+        margin: 4px 0 10px;
+        display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 10px;
+        justify-content: space-between;
     }
 
-    .task-form-subtasks-label {
-        display: block;
-        margin-bottom: 0;
+    .task-form-subtasks-head .field__label {
+        margin: 0;
     }
 
     .task-form-subtasks-list {
-        gap: 10px;
+        display: grid;
+        gap: 8px;
     }
 
     .subtasks-actions {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
+    }
+
+    .subtasks-actions .button {
+        font-size: 0.9rem;
+        padding: 0 14px;
+        min-height: 36px;
     }
 
     .subtask-editor {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 10px;
+        gap: 8px;
         align-items: center;
-        padding: 12px;
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        background: var(--surface-3);
+        padding: 10px 12px;
+        border: 1.5px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--surface);
+        transition: all var(--transition);
+    }
+
+    .subtask-editor:focus-within {
+        border-color: var(--primary);
+
+    }
+
+    .subtask-editor .input {
+        border: none;
+        padding: 0;
+        background: transparent;
+    }
+
+    .subtask-editor .button {
+        min-height: 32px;
+        padding: 0 10px;
+        font-size: 0.85rem;
     }
 
     .task-form-actions {
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
-        padding-top: 2px;
+        padding-top: 12px;
+    }
+
+    .task-form-actions .button {
+        min-height: 40px;
+        padding: 0 18px;
+        font-weight: 600;
+        font-size: 0.9rem;
     }
 
     .field-error {
@@ -271,6 +444,87 @@
         width: 15px;
         height: 15px;
         flex-shrink: 0;
+    }
+
+    .task-form-favorite-field {
+        gap: 0 !important;
+    }
+
+    .task-form-favorite-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        user-select: none;
+        font-weight: 400;
+        font-size: 0.9rem;
+        color: var(--text);
+        margin: 0;
+    }
+
+    .task-form-favorite-star {
+        font-size: 1.2rem;
+        color: var(--warning);
+    }
+
+    .task-form-favorite-label input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: var(--warning);
+    }
+
+    .task-form-favorite-text {
+        flex: 1;
+    }
+
+    .topbar__favorite-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border: 2px solid #fbbf24;
+        border-radius: 8px;
+        background: transparent;
+        color: #fbbf24;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--transition);
+        font-family: inherit;
+    }
+
+    .topbar__favorite-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .topbar__favorite-btn.is-favorite {
+        background: color-mix(in srgb, #fbbf24 14%, var(--surface));
+        border-color: color-mix(in srgb, #fbbf24 24%, var(--border-color));
+        transform: translateY(-2px);
+
+    }
+
+    .topbar__close-btn {
+        width: 40px;
+        height: 40px;
+        border: 1.5px solid;
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+        color: var(--danger);
+        border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
+        font-size: 1.4rem;
+        cursor: pointer;
+        transition: all var(--transition);
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .topbar__close-btn:hover {
+        background: color-mix(in srgb, var(--danger) 20%, var(--surface));
     }
 
     .datetime-field-wrap {
@@ -320,7 +574,7 @@
         border-radius: 22px;
         background: #ffffff;
         color: #162033;
-        box-shadow: 0 18px 50px rgba(12, 20, 34, 0.22);
+
         padding: 16px;
         display: grid;
         gap: 14px;
@@ -330,7 +584,7 @@
         background: #111827;
         color: #e9eef8;
         border-color: rgba(255, 255, 255, 0.12);
-        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.42);
+
     }
 
     .mini-datetime-modal__header {
@@ -468,7 +722,7 @@
 
     .mini-calendar__day.is-today {
         border-color: var(--primary);
-        box-shadow: inset 0 0 0 1px rgba(43, 108, 255, 0.18);
+
     }
 
     .mini-calendar__day.is-selected,
@@ -514,18 +768,29 @@
         flex-wrap: wrap;
     }
 
+    @media (max-width: 1024px) {
+        .task-list-selector__tiles {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
     @media (max-width: 640px) {
-        body:has(#task-form) .page {
-            padding-top: 8px;
-            padding-bottom: 12px;
+        .task-form-wrapper {
+            max-width: 100%;
         }
 
-        .task-form-hero {
-            margin-bottom: 10px;
+        .task-form {
+            gap: 16px;
+        }
+
+        .task-list-selector__tiles {
+            grid-template-columns: 1fr;
         }
 
         .task-form-subtasks-head {
+            flex-direction: column;
             align-items: stretch;
+            margin: 8px 0 12px;
         }
 
         .subtasks-actions {
@@ -533,11 +798,17 @@
         }
 
         .subtasks-actions .button {
-            width: 100%;
+            flex: 1;
+            min-width: 0;
         }
 
         .subtask-editor {
             grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .task-form-actions {
+            flex-direction: column;
         }
 
         .task-form-actions .button {
@@ -1139,6 +1410,56 @@
                 closeModal();
             }
         });
+    })();
+
+    (function () {
+        const isFavInput = document.getElementById('is-favorite-input');
+        const favoriteBtn = document.getElementById('favorite-toggle-btn');
+        const listTiles = document.querySelectorAll('.task-list-tile');
+        const taskListInput = document.getElementById('selected-list');
+        const favBtnText = favoriteBtn ? favoriteBtn.querySelector('span') : null;
+
+        if (!favoriteBtn || !isFavInput) return;
+
+        function updateFavoriteBtn() {
+            const isFavorite = isFavInput.value === 'on';
+            if (isFavorite) {
+                favoriteBtn.classList.add('is-favorite');
+                if (favBtnText) favBtnText.textContent = 'В избранном';
+            } else {
+                favoriteBtn.classList.remove('is-favorite');
+                if (favBtnText) favBtnText.textContent = 'В избранное';
+            }
+        }
+
+        function updateSelectedTile() {
+            listTiles.forEach(function (tile) {
+                tile.classList.remove('is-selected');
+            });
+            const selectedList = taskListInput.value;
+            const selectedTile = document.querySelector(`.task-list-tile[data-list="${selectedList}"]`);
+            if (selectedTile) {
+                selectedTile.classList.add('is-selected');
+            }
+        }
+
+        favoriteBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            isFavInput.value = isFavInput.value === 'on' ? 'off' : 'on';
+            updateFavoriteBtn();
+        });
+
+        listTiles.forEach(function (tile) {
+            tile.addEventListener('click', function (e) {
+                e.preventDefault();
+                updateSelectedTile();
+                tile.classList.add('is-selected');
+                taskListInput.value = tile.getAttribute('data-list');
+            });
+        });
+
+        updateFavoriteBtn();
+        updateSelectedTile();
     })();
 </script>
 {% endblock %}

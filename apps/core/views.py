@@ -176,9 +176,11 @@ def generate_initial_tasks(user):
 
 @login_required
 def home(request):
-    active_tasks = list(Task.objects.filter(
+    now = timezone.now()
+    today = now.date()
+
+    all_tasks = Task.objects.filter(
         user=request.user,
-        is_completed=False,
         parent_task__isnull=True
     ).annotate(
         pending_subtask_count=Count('subtasks', filter=Q(subtasks__is_completed=False))
@@ -187,35 +189,68 @@ def home(request):
             'subtasks',
             queryset=Task.objects.filter(user=request.user).order_by('due_date', 'id')
         )
-    ).order_by('due_date'))
+    ).order_by('due_date')
 
-    completed_tasks = Task.objects.filter(
+    active_tasks = [t for t in all_tasks if not t.is_completed and t.task_list == 'active']
+    urgent_tasks = [t for t in all_tasks if not t.is_completed and t.task_list == 'urgent']
+    planned_tasks = [t for t in all_tasks if not t.is_completed and t.task_list == 'planned']
+    completed_tasks = [t for t in all_tasks if t.is_completed]
+
+    # Get counts directly from database
+    active_count = Task.objects.filter(
+        user=request.user,
+        is_completed=False,
+        parent_task__isnull=True,
+        task_list='active'
+    ).count()
+
+    urgent_count = Task.objects.filter(
+        user=request.user,
+        is_completed=False,
+        parent_task__isnull=True,
+        task_list='urgent'
+    ).count()
+
+    planned_count = Task.objects.filter(
+        user=request.user,
+        is_completed=False,
+        parent_task__isnull=True,
+        task_list='planned'
+    ).count()
+
+    completed_count = Task.objects.filter(
         user=request.user,
         is_completed=True,
         parent_task__isnull=True
-    ).prefetch_related(
-        Prefetch(
-            'subtasks',
-            queryset=Task.objects.filter(user=request.user).order_by('due_date', 'id')
-        )
-    ).order_by('-updated_at', '-due_date')
+    ).count()
 
-    active_count = len(active_tasks)
-    completed_count = completed_tasks.count()
-    active_subtask_count = sum(t.pending_subtask_count for t in active_tasks)
-    total_subtask_count = Task.objects.filter(user=request.user, parent_task__isnull=False).count()
+    overdue_count = Task.objects.filter(
+        user=request.user,
+        is_completed=False,
+        parent_task__isnull=True,
+        task_list='overdue'
+    ).count()
+
+    favorites_count = Task.objects.filter(
+        user=request.user,
+        is_completed=False,
+        parent_task__isnull=True,
+        is_favorite=True
+    ).count()
 
     categories = Category.objects.filter(user=request.user)
 
     return render(request, 'core/home.html', {
-        'tasks': active_tasks,
+        'tasks': active_tasks + urgent_tasks + planned_tasks,
         'completed_tasks': completed_tasks,
-        'total_tasks': active_count + completed_count,
         'active_count': active_count,
+        'urgent_count': urgent_count,
+        'planned_count': planned_count,
         'completed_count': completed_count,
-        'active_subtask_count': active_subtask_count,
-        'total_subtask_count': total_subtask_count,
+        'overdue_count': overdue_count,
+        'favorites_count': favorites_count,
         'categories': categories,
+        'today': now,
     })
 
 
@@ -312,6 +347,85 @@ def clear_completed_tasks(request):
             messages.info(request, 'Нет выполненных задач для очистки.')
 
     return _redirect_back(request)
+
+
+@login_required
+def update_overdue_tasks(request):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+    today = timezone.now().date()
+
+    updated_count = Task.objects.filter(
+        user=request.user,
+        is_completed=False,
+        parent_task__isnull=True,
+        due_date__date__lt=today,
+        task_list__in=['active', 'planned', 'urgent']
+    ).update(task_list='overdue')
+
+    return JsonResponse({
+        'status': 'success',
+        'updated_count': updated_count
+    })
+
+
+@login_required
+def api_tasks_data(request):
+    now = timezone.now()
+
+    all_tasks = Task.objects.filter(
+        user=request.user,
+        parent_task__isnull=True
+    ).select_related('category').annotate(
+        pending_subtask_count=Count('subtasks', filter=Q(subtasks__is_completed=False))
+    ).prefetch_related(
+        Prefetch(
+            'subtasks',
+            queryset=Task.objects.filter(user=request.user).order_by('due_date', 'id')
+        )
+    ).order_by('due_date')
+
+    tasks_list = []
+    completed_list = []
+
+    for task in all_tasks:
+        local_due = timezone.localtime(task.due_date)
+        task_data = {
+            'id': task.id,
+            'title': task.title,
+            'description': task.description or '',
+            'due_date': local_due.isoformat(),
+            'is_completed': task.is_completed,
+            'is_favorite': task.is_favorite,
+            'task_list': task.task_list,
+            'pending_subtask_count': task.pending_subtask_count,
+            'category': {
+                'id': task.category.id,
+                'name': task.category.name,
+                'color': task.category.color
+            } if task.category else None,
+            'subtasks': [
+                {
+                    'id': st.id,
+                    'title': st.title,
+                    'is_completed': st.is_completed
+                }
+                for st in task.subtasks.all()
+            ]
+        }
+
+        if task.is_completed:
+            completed_list.append(task_data)
+        else:
+            tasks_list.append(task_data)
+
+    return JsonResponse({
+        'status': 'success',
+        'tasks': tasks_list,
+        'completed_tasks': completed_list,
+        'now': now.isoformat()
+    })
 
 
 def _normalize_subtask_title(value):
@@ -529,6 +643,13 @@ def task_create(request):
         if form.is_valid():
             task = form.save(commit=False)
             task.user = request.user
+
+            task_list = request.POST.get('task_list', 'active')
+            task.task_list = task_list
+
+            is_favorite = request.POST.get('is_favorite', 'off') == 'on'
+            task.is_favorite = is_favorite
+
             task.save()
 
             subtasks = request.POST.getlist('subtasks')
@@ -540,7 +661,8 @@ def task_create(request):
                     title=subtask_title,
                     description='',
                     due_date=task.due_date,
-                    parent_task=task
+                    parent_task=task,
+                    task_list=task.task_list
                 )
 
             messages.success(request, f'Задача "{task.title}" создана!')
@@ -562,7 +684,15 @@ def task_edit(request, task_id):
     if request.method == 'POST':
         form = TaskForm(request.POST, instance=task, user=request.user)
         if form.is_valid():
-            task = form.save()
+            task = form.save(commit=False)
+
+            task_list = request.POST.get('task_list', 'active')
+            task.task_list = task_list
+
+            is_favorite = request.POST.get('is_favorite', 'off') == 'on'
+            task.is_favorite = is_favorite
+
+            task.save()
 
             submitted_subtasks = _deduplicate_subtasks(
                 request.POST.getlist('subtasks'),
@@ -636,6 +766,23 @@ def api_tasks(request):
         })
 
     return JsonResponse(events, safe=False)
+
+
+@login_required
+def api_task_subtasks(request, task_id):
+    try:
+        task = Task.objects.get(id=task_id, user=request.user, parent_task__isnull=True)
+    except Task.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Task not found'}, status=404)
+
+    subtasks = task.subtasks.filter(user=request.user).order_by('due_date', 'id').values(
+        'id', 'title', 'is_completed'
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'subtasks': list(subtasks)
+    })
 
 
 @login_required
@@ -749,8 +896,7 @@ def api_generate_subtasks(request):
         return JsonResponse({'status': 'error', 'message': 'task_title is required'}, status=400)
 
     try:
-        subtasks = _generate_subtasks_with_yandex(task_title, task_description, request.user.gender)
-
+        # Проверяем наличие task_id и получаем родительскую задачу
         if task_id:
             try:
                 parent_task = Task.objects.get(id=task_id, user=request.user)
@@ -760,6 +906,15 @@ def api_generate_subtasks(request):
                     'message': 'Родительская задача не найдена.'
                 }, status=404)
 
+            # Генерируем подзадачи синхронно
+            subtasks = _generate_subtasks_with_yandex(parent_task.title, parent_task.description or '', request.user.gender)
+
+        else:
+            # Если нет task_id, генерируем синхронно (быстро для API)
+            subtasks = _generate_subtasks_with_yandex(task_title, task_description, request.user.gender)
+
+        # Если есть task_id, сохраняем подзадачи в БД
+        if task_id:
             if task_description and not parent_task.description:
                 parent_task.description = task_description
                 parent_task.save(update_fields=['description'])

@@ -1,15 +1,16 @@
-Django==6.0.4
+Django==4.2.11
 djangorestframework==3.16.1
-channels==4.2.2
-channels-redis==4.2.1
-celery==5.4.0
-redis==5.2.1
 psycopg[binary]==3.3.3
 drf-spectacular==0.27.2
 python-dotenv==1.0.1
 requests==2.32.3
-fastapi==0.115.1
-uvicorn[standard]==0.31.1
-python-multipart==0.0.9
 gunicorn==23.0.0
 dj-database-url==2.3.0
+
+# Асинхронная обработка
+celery==5.4.0
+redis==5.2.1
+django-celery-beat==2.6.0
+
+# Event-driven система
+pydantic==2.13.1

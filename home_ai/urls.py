@@ -21,6 +21,7 @@ urlpatterns = [
     path('task/<int:task_id>/complete/', views.complete_task, name='complete_task'),
     path('task/<int:task_id>/restore/', views.restore_task, name='restore_task'),
     path('tasks/clear-completed/', views.clear_completed_tasks, name='clear_completed_tasks'),
+    path('tasks/update-overdue/', views.update_overdue_tasks, name='update_overdue_tasks'),
 
     path('task/create-with-ai/', views.task_create_with_ai, name='task_create_with_ai'),
     path('task/<int:task_id>/generate-subtasks/', views.generate_subtasks_view, name='generate_subtasks_view'),
@@ -30,5 +31,7 @@ urlpatterns = [
     path('categories/<int:category_id>/delete/', views.category_delete, name='category_delete'),
 
     path('api/tasks/', views.api_tasks, name='api_tasks'),
+    path('api/tasks-data/', views.api_tasks_data, name='api_tasks_data'),
+    path('api/tasks/<int:task_id>/subtasks/', views.api_task_subtasks, name='api_task_subtasks'),
     path('api/generate-subtasks/', views.api_generate_subtasks, name='api_generate_subtasks'),
 ]

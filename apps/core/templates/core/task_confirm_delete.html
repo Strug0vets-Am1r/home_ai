@@ -45,7 +45,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.META.HTTP_REFERER }}">
                 <button type="submit" class="button button--danger">Да, удалить</button>
-                <a href="{{ request.META.HTTP_REFERER|default:'/' }}" class="button button--secondary">Отмена</a>
+                <a href="{{ request.META.HTTP_REFERER|default:'/' }}" class="button button--danger">Отмена</a>
             </form>
         </div>
     </div>

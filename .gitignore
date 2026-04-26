@@ -15,7 +15,12 @@ ml_service/venv_ml/
 # Переменные окружения
 .env
 .env.*
+.env.local
+.env.docker
+.env.prod
 ml_service/.env
+ml_service/.env.local
+notification_service/.env
 
 # Django / SQLite
 db.sqlite3

@@ -48,6 +48,12 @@ class Category(models.Model):
 
 
 class Task(models.Model):
+    LIST_CHOICES = [
+        ('active', 'Актуальные'),
+        ('urgent', 'Срочные'),
+        ('planned', 'В планах'),
+    ]
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -57,6 +63,12 @@ class Task(models.Model):
     description = models.TextField(blank=True, null=True)
     due_date = models.DateTimeField()
     is_completed = models.BooleanField(default=False)
+    is_favorite = models.BooleanField(default=False)
+    task_list = models.CharField(
+        max_length=20,
+        choices=LIST_CHOICES,
+        default='active'
+    )
 
     category = models.ForeignKey(
         'Category',

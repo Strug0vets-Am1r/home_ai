@@ -98,7 +98,7 @@
 
             <div class="profile-actions">
                 <button type="submit" class="button button--success">Сохранить изменения</button>
-                <a href="{% url 'home' %}" class="button button--secondary">Отмена</a>
+                <a href="{% url 'home' %}" class="button button--danger">Отмена</a>
             </div>
         </form>
     </div>
@@ -123,7 +123,7 @@
         font-weight: 700;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: var(--muted);
+        color: var(--text-secondary);
     }
 
     .profile-avatar-row {
@@ -144,7 +144,7 @@
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        box-shadow: var(--shadow-sm);
+
     }
 
     .profile-username {
@@ -172,7 +172,7 @@
         padding: 10px 16px;
         border: 1px solid var(--border);
         border-radius: 12px;
-        background: var(--surface-2);
+        background: var(--surface);
         cursor: pointer;
         font-size: 0.95rem;
         font-weight: 500;
@@ -181,7 +181,7 @@
     }
 
     .profile-checkbox-label:hover {
-        background: var(--surface-3);
+        background: var(--surface);
         border-color: var(--border-strong, #b8c4db);
     }
 
@@ -203,7 +203,7 @@
         top: 50%;
         right: 16px;
         transform: translateY(-52%);
-        color: var(--muted);
+        color: var(--text-secondary);
         font-size: 12px;
         pointer-events: none;
     }

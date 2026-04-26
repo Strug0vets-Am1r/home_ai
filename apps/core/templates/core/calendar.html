@@ -119,7 +119,7 @@
     .cal-nav-btn svg { width: 18px; height: 18px; }
 
     .cal-nav-btn:hover {
-        background: var(--surface-2);
+        background: var(--surface);
         border-color: var(--border-strong);
     }
 
@@ -128,7 +128,7 @@
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         background: var(--surface);
-        color: var(--muted);
+        color: var(--text-secondary);
         font: inherit;
         font-size: 0.88rem;
         font-weight: 600;
@@ -155,7 +155,7 @@
         transition: background var(--transition), border-color var(--transition);
     }
 
-    .cal-today-btn:hover { background: var(--surface-2); }
+    .cal-today-btn:hover { background: var(--surface); }
 
     /* ── Body layout ── */
     .cal-body {
@@ -174,8 +174,8 @@
         min-width: 0;
         border: 1px solid var(--border);
         border-radius: var(--radius-lg);
-        background: linear-gradient(180deg, var(--surface), var(--surface-2));
-        box-shadow: var(--shadow-sm);
+        background: linear-gradient(180deg, var(--surface), var(--surface));
+
         overflow: hidden;
     }
 
@@ -183,7 +183,7 @@
         display: grid;
         grid-template-columns: repeat(7, minmax(0, 1fr));
         border-bottom: 1px solid var(--border);
-        background: var(--surface-3);
+        background: var(--surface);
     }
 
     .cal-weekdays span {
@@ -193,10 +193,10 @@
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: var(--muted);
+        color: var(--text-secondary);
     }
 
-    .cal-weekdays .cal-weekend { color: color-mix(in srgb, var(--danger) 70%, var(--muted)); }
+    .cal-weekdays .cal-weekend { color: color-mix(in srgb, var(--danger) 70%, var(--text-secondary)); }
 
     /* Month grid */
     .cal-grid {
@@ -234,7 +234,7 @@
     .cal-cell__num {
         font-size: 0.82rem;
         font-weight: 700;
-        color: var(--muted);
+        color: var(--text-secondary);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -274,8 +274,8 @@
     .cal-chip--done { opacity: 0.45; text-decoration: line-through; }
 
     .cal-chip--more {
-        background: var(--surface-3);
-        color: var(--muted);
+        background: var(--surface);
+        color: var(--text-secondary);
         border: 1px solid var(--border);
         text-align: center;
     }
@@ -291,8 +291,8 @@
         flex-shrink: 0;
         border: 1px solid var(--border);
         border-radius: var(--radius-lg);
-        background: linear-gradient(180deg, var(--surface), var(--surface-2));
-        box-shadow: var(--shadow-sm);
+        background: linear-gradient(180deg, var(--surface), var(--surface));
+
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -328,7 +328,7 @@
         border: 0;
         border-radius: 999px;
         background: transparent;
-        color: var(--muted);
+        color: var(--text-secondary);
         font: inherit;
         font-size: 1.1rem;
         cursor: pointer;
@@ -350,7 +350,7 @@
     }
 
     .cal-sidebar__empty {
-        color: var(--muted);
+        color: var(--text-secondary);
         font-size: 0.9rem;
         text-align: center;
         margin: auto 0;
@@ -362,7 +362,7 @@
         border-left-width: 4px;
         border-radius: var(--radius-sm);
         padding: 10px 12px;
-        background: var(--surface-3);
+        background: var(--surface);
         cursor: pointer;
         transition: background var(--transition), transform var(--transition);
         display: grid;
@@ -393,7 +393,7 @@
 
     .cal-task-card__time {
         font-size: 0.78rem;
-        color: var(--muted);
+        color: var(--text-secondary);
         font-weight: 500;
     }
 
@@ -441,7 +441,7 @@
     .modal-dialog {
         width: min(100%, 520px);
         border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-lg);
+
     }
 
     .modal-dialog--task {
@@ -469,11 +469,11 @@
 
     .task-modal__header-main { display: grid; gap: 8px; }
     .task-modal__title { margin: 0; }
-    .task-modal__time { margin: 0; color: var(--muted); font-size: 0.9rem; font-weight: 600; }
+    .task-modal__time { margin: 0; color: var(--text-secondary); font-size: 0.9rem; font-weight: 600; }
 
     .task-modal__content { display: grid; gap: 16px; }
     .task-modal__block { display: grid; gap: 8px; }
-    .task-modal__label { color: var(--muted); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+    .task-modal__label { color: var(--text-secondary); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 
     .task-modal__actions { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
 
@@ -481,8 +481,8 @@
         width: 38px; height: 38px;
         border: 1px solid var(--border);
         border-radius: 999px;
-        background: var(--surface-2);
-        color: var(--muted);
+        background: var(--surface);
+        color: var(--text-secondary);
         font: inherit; font-size: 1.25rem; line-height: 1;
         cursor: pointer;
         transition: background 0.18s ease, color 0.18s ease;
@@ -505,12 +505,12 @@
         padding: 6px 8px 0 0;
         font-size: 0.72rem;
         font-weight: 600;
-        color: var(--muted);
+        color: var(--text-secondary);
         border-right: 1px solid var(--border);
         border-bottom: 1px solid var(--border);
         white-space: nowrap;
         min-height: 56px;
-        background: var(--surface-3);
+        background: var(--surface);
     }
 
     .cal-cell--week-row {
@@ -830,7 +830,7 @@
         let actionsHtml = task.is_completed
             ? `<a href="/task/${task.id}/delete/" class="button button--danger button--small">Удалить</a>`
             : `<a href="${task.complete_url}" class="button button--success button--small">Завершить</a>
-               <a href="${task.edit_url}" class="button button--secondary button--small">Редактировать</a>
+               <a href="${task.edit_url}" class="button button--primary button--small">Редактировать</a>
                <a href="${task.delete_url}" class="button button--danger button--small">Удалить</a>`;
 
         taskModalBody.innerHTML = `

@@ -1,74 +1,171 @@
+version: '3.9'
+
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
+  # ── PostgreSQL ──
+  postgres:
+    image: postgres:15
+    container_name: homeai-postgres
     environment:
       POSTGRES_DB: ${DB_NAME:-home_ai_db}
-      POSTGRES_USER: ${DB_USER:-home_ai_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-home_ai_pass}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-home_ai_user} -d ${DB_NAME:-home_ai_db}"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
+    networks:
+      - homeai-network
 
+  # ── Redis ──
   redis:
     image: redis:7-alpine
-    restart: unless-stopped
+    container_name: homeai-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
+    networks:
+      - homeai-network
 
-  web:
-    build: .
+  # ── Task Service (Django) ──
+  task-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: homeai-task-service
     command: >
-      sh -c "python manage.py migrate --noinput &&
-             python manage.py collectstatic --noinput &&
-             python manage.py runserver 0.0.0.0:8000"
-    restart: unless-stopped
+      sh -c "python manage.py migrate &&
+             gunicorn home_ai.wsgi:application --bind 0.0.0.0:8000"
+    environment:
+      DEBUG: ${DEBUG:-False}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret-key-change-in-production}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-home_ai_db}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      YANDEX_FOLDER_ID: ${YANDEX_FOLDER_ID:-}
+      YANDEX_API_KEY: ${YANDEX_API_KEY:-}
+      YANDEX_MODEL_URI: ${YANDEX_MODEL_URI:-}
     ports:
       - "8000:8000"
-    env_file: .env
-    environment:
-      DB_HOST: db
-      DB_USER: ${DB_USER:-home_ai_user}
-      DB_PASSWORD: ${DB_PASSWORD:-home_ai_pass}
-      DB_NAME: ${DB_NAME:-home_ai_db}
-      REDIS_HOST: redis
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     volumes:
       - .:/app
+    networks:
+      - homeai-network
 
-  celery:
-    build: .
-    command: celery -A home_ai worker -l info
-    restart: unless-stopped
-    env_file: .env
+  # ── Celery Worker ──
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: homeai-celery-worker
+    command: celery -A home_ai worker -l info -c 4
     environment:
-      DB_HOST: db
-      DB_USER: ${DB_USER:-home_ai_user}
-      DB_PASSWORD: ${DB_PASSWORD:-home_ai_pass}
-      DB_NAME: ${DB_NAME:-home_ai_db}
+      DEBUG: ${DEBUG:-False}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret-key-change-in-production}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-home_ai_db}
       REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      YANDEX_FOLDER_ID: ${YANDEX_FOLDER_ID:-}
+      YANDEX_API_KEY: ${YANDEX_API_KEY:-}
+    depends_on:
+      - postgres
+      - redis
+      - task-service
+    volumes:
+      - .:/app
+    networks:
+      - homeai-network
+
+  # ── Celery Beat (Задачи по расписанию) ──
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: homeai-celery-beat
+    command: celery -A home_ai beat -l info
+    environment:
+      DEBUG: ${DEBUG:-False}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret-key-change-in-production}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-home_ai_db}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
     volumes:
       - .:/app
+    networks:
+      - homeai-network
+
+  # ── AI Service (FastAPI) ──
+  ai-service:
+    build:
+      context: ./ml_service
+      dockerfile: Dockerfile
+    container_name: homeai-ai-service
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      YANDEX_FOLDER_ID: ${YANDEX_FOLDER_ID:-}
+      YANDEX_API_KEY: ${YANDEX_API_KEY:-}
+      YANDEX_MODEL_URI: ${YANDEX_MODEL_URI:-}
+    ports:
+      - "8002:8002"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - homeai-network
+
+  # ── Notification Service (FastAPI) ──
+  notification-service:
+    build:
+      context: ./notification_service
+      dockerfile: Dockerfile
+    container_name: homeai-notification-service
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      DJANGO_API_URL: http://task-service:8000
+    ports:
+      - "8003:8003"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - homeai-network
+
+networks:
+  homeai-network:
+    driver: bridge
 
 volumes:
   postgres_data:
+  redis_data:

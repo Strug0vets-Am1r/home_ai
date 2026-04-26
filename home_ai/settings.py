@@ -29,7 +29,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'apps.core.apps.CoreConfig',
     'rest_framework',
-    'channels',
     'drf_spectacular',
 ]
 
@@ -62,7 +61,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'home_ai.wsgi.application'
-ASGI_APPLICATION = 'home_ai.asgi.application'
 
 _DATABASE_URL = os.getenv('DATABASE_URL')
 if _DATABASE_URL:
@@ -95,7 +93,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = 'ru-ru'
-TIME_ZONE = 'Europe/Moscow'
+TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
@@ -119,17 +117,10 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 
-_REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-_REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [(_REDIS_HOST, _REDIS_PORT)],
-        },
-    },
-}
+# Redis конфиг (используется Celery и Event система)
+REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+REDIS_DB = int(os.getenv('REDIS_DB', 0))
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',

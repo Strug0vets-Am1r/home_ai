@@ -1,20 +1,32 @@
+"""
+Celery конфиг для асинхронной обработки задач
+"""
 import os
 from celery import Celery
+from celery.schedules import crontab
 
-# Устанавливаем настройки Django для Celery
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'home_ai.settings')
 
-# Создаём экземпляр Celery
 app = Celery('home_ai')
 
-# Загружаем настройки из Django settings.py с префиксом CELERY_
+# Загружаем конфиг из Django settings
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Автоматически находим задачи в файлах tasks.py каждого приложения
+# Автоматически регистрируем таски из apps
 app.autodiscover_tasks()
 
+# Beat schedule (периодические задачи)
+app.conf.beat_schedule = {
+    'check-overdue-tasks': {
+        'task': 'apps.core.tasks.check_overdue_tasks',
+        'schedule': crontab(minute=0, hour='*'),  # Каждый час
+    },
+    'cleanup-old-history': {
+        'task': 'apps.core.tasks.cleanup_old_history',
+        'schedule': crontab(minute=0, hour=2),  # В 2:00 AM
+    },
+}
 
 @app.task(bind=True)
 def debug_task(self):
-    """Тестовая задача для проверки работы Celery"""
     print(f'Request: {self.request!r}')

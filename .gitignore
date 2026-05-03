@@ -45,3 +45,6 @@ db.sqlite3
 
 # Celery Beat (автоматически генерируемые файлы)
 celerybeat-schedule*
+
+# AI assistant files
+AGENTS.md

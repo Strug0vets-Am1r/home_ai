@@ -196,59 +196,11 @@ def home(request):
     planned_tasks = [t for t in all_tasks if not t.is_completed and t.task_list == 'planned']
     completed_tasks = [t for t in all_tasks if t.is_completed]
 
-    # Get counts directly from database
-    active_count = Task.objects.filter(
-        user=request.user,
-        is_completed=False,
-        parent_task__isnull=True,
-        task_list='active'
-    ).count()
-
-    urgent_count = Task.objects.filter(
-        user=request.user,
-        is_completed=False,
-        parent_task__isnull=True,
-        task_list='urgent'
-    ).count()
-
-    planned_count = Task.objects.filter(
-        user=request.user,
-        is_completed=False,
-        parent_task__isnull=True,
-        task_list='planned'
-    ).count()
-
-    completed_count = Task.objects.filter(
-        user=request.user,
-        is_completed=True,
-        parent_task__isnull=True
-    ).count()
-
-    overdue_count = Task.objects.filter(
-        user=request.user,
-        is_completed=False,
-        parent_task__isnull=True,
-        task_list='overdue'
-    ).count()
-
-    favorites_count = Task.objects.filter(
-        user=request.user,
-        is_completed=False,
-        parent_task__isnull=True,
-        is_favorite=True
-    ).count()
-
     categories = Category.objects.filter(user=request.user)
 
     return render(request, 'core/home.html', {
         'tasks': active_tasks + urgent_tasks + planned_tasks,
         'completed_tasks': completed_tasks,
-        'active_count': active_count,
-        'urgent_count': urgent_count,
-        'planned_count': planned_count,
-        'completed_count': completed_count,
-        'overdue_count': overdue_count,
-        'favorites_count': favorites_count,
         'categories': categories,
         'today': now,
     })
@@ -420,11 +372,23 @@ def api_tasks_data(request):
         else:
             tasks_list.append(task_data)
 
+    today = now.date()
+
+    counters = {
+        'active_count': Task.objects.filter(user=request.user, is_completed=False, parent_task__isnull=True, task_list='active', due_date__date__gte=today).count(),
+        'urgent_count': Task.objects.filter(user=request.user, is_completed=False, parent_task__isnull=True, task_list='urgent', due_date__date__gte=today).count(),
+        'planned_count': Task.objects.filter(user=request.user, is_completed=False, parent_task__isnull=True, task_list='planned', due_date__date__gte=today).count(),
+        'completed_count': Task.objects.filter(user=request.user, is_completed=True, parent_task__isnull=True).count(),
+        'overdue_count': Task.objects.filter(user=request.user, is_completed=False, parent_task__isnull=True, due_date__date__lt=today).count(),
+        'favorites_count': Task.objects.filter(user=request.user, is_completed=False, parent_task__isnull=True, is_favorite=True).count(),
+    }
+
     return JsonResponse({
         'status': 'success',
         'tasks': tasks_list,
         'completed_tasks': completed_list,
-        'now': now.isoformat()
+        'now': now.isoformat(),
+        'counters': counters,
     })
 
 

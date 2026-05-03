@@ -2,57 +2,57 @@
 
 {% block title %}Профиль{% endblock %}
 
-{% block content %}
-<div class="hero profile-hero">
-    <div>
-        <div class="eyebrow">Аккаунт</div>
-        <h1 class="hero__title">Профиль</h1>
+{% block topbar %}
+<div class="topbar">
+    <div style="display: flex; align-items: center; gap: 16px; position: relative;">
+        <h1 class="topbar__title" id="topbar-title">Профиль</h1>
     </div>
-    <p class="hero__meta">Здесь можно изменить личные данные и параметры дома.</p>
+    <div class="topbar__actions">
+        <button type="button" onclick="window.history.back()" class="topbar__close-btn" title="Закрыть">×</button>
+    </div>
 </div>
+{% endblock %}
 
+{% block content %}
 {% if messages %}
     {% for message in messages %}
         <div class="alert alert--{{ message.tags }}" role="alert">{{ message }}</div>
     {% endfor %}
 {% endif %}
 
-<div class="panel panel--glass profile-panel">
-    <div class="panel__body">
+<div class="profile-container">
+    <div class="profile-card">
+        <div class="profile-header">
+            <div class="profile-avatar">{{ request.user.username|slice:":1"|upper }}</div>
+            <div class="profile-header__name">{{ request.user.username }}</div>
+        </div>
+
         <form method="post" class="profile-form">
             {% csrf_token %}
 
             <div class="profile-section">
                 <div class="profile-section__title">Личные данные</div>
-                <div class="profile-avatar-row">
-                    <div class="profile-avatar">
-                        {{ request.user.username|first|upper }}
-                    </div>
-                    <div class="profile-username">{{ request.user.username }}</div>
-                </div>
 
-                <div class="form-grid">
-                    <div class="field">
-                        <label class="field__label" for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+                <div class="profile-grid">
+                    <div class="profile-field">
+                        <label class="profile-field__label" for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
                         {{ form.first_name }}
-                        {% if form.first_name.errors %}<div class="muted">{{ form.first_name.errors }}</div>{% endif %}
+                        {% if form.first_name.errors %}<div class="profile-field__error">{{ form.first_name.errors }}</div>{% endif %}
                     </div>
-                    <div class="field">
-                        <label class="field__label" for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+                    <div class="profile-field">
+                        <label class="profile-field__label" for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
                         {{ form.last_name }}
-                        {% if form.last_name.errors %}<div class="muted">{{ form.last_name.errors }}</div>{% endif %}
+                        {% if form.last_name.errors %}<div class="profile-field__error">{{ form.last_name.errors }}</div>{% endif %}
                     </div>
-                    <div class="field">
-                        <label class="field__label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                    <div class="profile-field">
+                        <label class="profile-field__label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
                         {{ form.email }}
-                        {% if form.email.errors %}<div class="muted">{{ form.email.errors }}</div>{% endif %}
+                        {% if form.email.errors %}<div class="profile-field__error">{{ form.email.errors }}</div>{% endif %}
                     </div>
-                    <div class="field">
-                        <label class="field__label" for="{{ form.gender.id_for_label }}">{{ form.gender.label }}</label>
-                        <div class="profile-select-wrap">
-                            {{ form.gender }}
-                        </div>
-                        {% if form.gender.errors %}<div class="muted">{{ form.gender.errors }}</div>{% endif %}
+                    <div class="profile-field">
+                        <label class="profile-field__label" for="{{ form.gender.id_for_label }}">{{ form.gender.label }}</label>
+                        {{ form.gender }}
+                        {% if form.gender.errors %}<div class="profile-field__error">{{ form.gender.errors }}</div>{% endif %}
                     </div>
                 </div>
             </div>
@@ -61,37 +61,36 @@
 
             <div class="profile-section">
                 <div class="profile-section__title">Параметры дома</div>
-                <div class="form-grid">
-                    <div class="field">
-                        <label class="field__label" for="{{ form.room_count.id_for_label }}">{{ form.room_count.label }}</label>
+
+                <div class="profile-grid profile-grid--two">
+                    <div class="profile-field">
+                        <label class="profile-field__label" for="{{ form.room_count.id_for_label }}">{{ form.room_count.label }}</label>
                         {{ form.room_count }}
-                        {% if form.room_count.errors %}<div class="muted">{{ form.room_count.errors }}</div>{% endif %}
+                        {% if form.room_count.errors %}<div class="profile-field__error">{{ form.room_count.errors }}</div>{% endif %}
                     </div>
-                    <div class="field">
-                        <label class="field__label" for="{{ form.cleaning_frequency.id_for_label }}">{{ form.cleaning_frequency.label }}</label>
-                        <div class="profile-select-wrap">
-                            {{ form.cleaning_frequency }}
-                        </div>
-                        {% if form.cleaning_frequency.errors %}<div class="muted">{{ form.cleaning_frequency.errors }}</div>{% endif %}
+                    <div class="profile-field">
+                        <label class="profile-field__label" for="{{ form.cleaning_frequency.id_for_label }}">{{ form.cleaning_frequency.label }}</label>
+                        {{ form.cleaning_frequency }}
+                        {% if form.cleaning_frequency.errors %}<div class="profile-field__error">{{ form.cleaning_frequency.errors }}</div>{% endif %}
                     </div>
                 </div>
 
-                <div class="profile-checkboxes">
-                    <label class="profile-checkbox-label">
+                <div class="profile-toggles">
+                    <label class="profile-toggle">
                         {{ form.has_dishwasher }}
-                        <span>{{ form.has_dishwasher.label }}</span>
+                        <span>Посудомоечная машина</span>
                     </label>
-                    <label class="profile-checkbox-label">
+                    <label class="profile-toggle">
                         {{ form.has_robot_vacuum }}
-                        <span>{{ form.has_robot_vacuum.label }}</span>
+                        <span>Робот-пылесос</span>
                     </label>
-                    <label class="profile-checkbox-label">
+                    <label class="profile-toggle">
                         {{ form.has_plants }}
-                        <span>{{ form.has_plants.label }}</span>
+                        <span>Есть растения</span>
                     </label>
-                    <label class="profile-checkbox-label">
+                    <label class="profile-toggle">
                         {{ form.has_pets }}
-                        <span>{{ form.has_pets.label }}</span>
+                        <span>Есть питомцы</span>
                     </label>
                 </div>
             </div>
@@ -105,124 +104,216 @@
 </div>
 
 <style>
-    .profile-hero {
-        margin-bottom: 12px;
+    .profile-container {
+        max-width: 1060px;
+        margin: 0 auto;
+        height: calc(100vh - 168px);
+        display: flex;
+        flex-direction: column;
     }
 
-    .profile-panel {
-        overflow: hidden;
+    .profile-card {
+        border: 1.5px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+        padding: 16px 20px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
     }
 
-    .profile-section {
-        display: grid;
-        gap: 16px;
-    }
-
-    .profile-section__title {
-        font-size: 0.85rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: var(--text-secondary);
-    }
-
-    .profile-avatar-row {
+    .profile-header {
         display: flex;
         align-items: center;
         gap: 14px;
+        padding: 10px 14px 16px;
+        border-bottom: 1.5px solid var(--border-color);
+        margin-bottom: 18px;
     }
 
     .profile-avatar {
-        width: 56px;
-        height: 56px;
+        width: 44px;
+        height: 44px;
         border-radius: 999px;
         background: var(--primary);
         color: #fff;
-        font-size: 1.4rem;
-        font-weight: 700;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-
+        font-weight: 700;
+        font-size: 1.1rem;
     }
 
-    .profile-username {
-        font-weight: 600;
+    .profile-header__name {
+        font-weight: 700;
         font-size: 1.05rem;
         color: var(--text);
     }
 
-    .profile-divider {
-        height: 1px;
-        background: var(--border);
-        margin: 4px 0;
+    .profile-form {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
     }
 
-    .profile-checkboxes {
-        display: flex;
-        flex-wrap: wrap;
+    .profile-section {
+        display: grid;
+        gap: 12px;
+    }
+
+    .profile-section__title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
+
+    .profile-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+    }
+
+    .profile-grid--two {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .profile-field {
+        display: grid;
+        gap: 6px;
+    }
+
+    .profile-field__label {
+        font-weight: 600;
+        font-size: 0.88rem;
+        color: var(--text);
+    }
+
+    .profile-field .input,
+    .profile-field .textarea,
+    .profile-field .select {
+        width: 100%;
+        font-size: 0.9rem;
+        padding: 9px 12px;
+        border: 1.5px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: var(--surface);
+        color: var(--text);
+        transition: all var(--transition);
+        line-height: 1.5;
+        font-family: inherit;
+    }
+
+    .profile-field .input:focus,
+    .profile-field .textarea:focus,
+    .profile-field .select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+    }
+
+    .profile-field .select {
+        appearance: none;
+        padding-right: 38px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+    }
+
+    .profile-field__error {
+        color: var(--danger);
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .profile-divider {
+        height: 0;
+        border-bottom: 1.5px solid var(--border-color);
+        margin: 16px 0;
+    }
+
+    .profile-toggles {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
         gap: 10px;
     }
 
-    .profile-checkbox-label {
+    .profile-toggle {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 16px;
-        border: 1px solid var(--border);
-        border-radius: 12px;
+        gap: 10px;
+        padding: 10px 13px;
+        border: 1.5px solid var(--border-color);
+        border-radius: var(--radius-md);
         background: var(--surface);
         cursor: pointer;
-        font-size: 0.95rem;
+        font-size: 0.88rem;
         font-weight: 500;
-        transition: background 180ms, border-color 180ms;
+        color: var(--text);
+        transition: all var(--transition);
         user-select: none;
     }
 
-    .profile-checkbox-label:hover {
-        background: var(--surface);
-        border-color: var(--border-strong, #b8c4db);
+    .profile-toggle:hover {
+        border-color: var(--primary);
+        background: color-mix(in srgb, var(--primary) 4%, var(--surface));
     }
 
-    .profile-checkbox-label input[type="checkbox"] {
-        width: 17px;
-        height: 17px;
+    .profile-toggle input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
         accent-color: var(--primary);
         cursor: pointer;
         flex-shrink: 0;
-    }
-
-    .profile-select-wrap {
-        position: relative;
-    }
-
-    .profile-select-wrap::after {
-        content: "▾";
-        position: absolute;
-        top: 50%;
-        right: 16px;
-        transform: translateY(-52%);
-        color: var(--text-secondary);
-        font-size: 12px;
-        pointer-events: none;
-    }
-
-    .profile-select-wrap .select {
-        border-radius: 16px;
-        padding: 14px 40px 14px 16px;
-        min-height: unset;
+        margin-left: auto;
     }
 
     .profile-actions {
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
-        padding-top: 4px;
+        padding-top: 16px;
+        margin-top: auto;
+    }
+
+    .profile-actions .button {
+        min-height: 40px;
+        padding: 0 16px;
+        font-weight: 600;
+        font-size: 0.88rem;
+    }
+
+    .topbar__close-btn {
+        width: 40px;
+        height: 40px;
+        border: 1.5px solid color-mix(in srgb, var(--danger) 24%, var(--border-color));
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+        color: var(--danger);
+        font-size: 1.4rem;
+        cursor: pointer;
+        transition: all var(--transition);
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .topbar__close-btn:hover {
+        background: color-mix(in srgb, var(--danger) 20%, var(--surface));
+    }
+
+    @media (max-width: 768px) {
+        .profile-grid,
+        .profile-toggles {
+            grid-template-columns: 1fr;
+        }
     }
 
     @media (max-width: 640px) {
-        .profile-checkboxes {
+        .profile-actions {
             flex-direction: column;
         }
 
@@ -231,4 +322,32 @@
         }
     }
 </style>
+<script>
+(function () {
+    document.querySelectorAll('.profile-field input, .profile-field select, .profile-field textarea').forEach(function (el) {
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+            if (!el.classList.contains('input') && !el.classList.contains('textarea') && !el.classList.contains('select')) {
+                if (el.type === 'checkbox') return;
+                el.classList.add(el.tagName === 'TEXTAREA' ? 'textarea' : el.tagName === 'SELECT' ? 'select' : 'input');
+            }
+        }
+    });
+
+    function updateSidebarCounters(counters) {
+        if (!counters) return;
+        Object.keys(counters).forEach(function (key) {
+            var els = document.querySelectorAll('[data-counter="' + key + '"]');
+            els.forEach(function (el) { el.textContent = counters[key] ?? el.textContent; });
+        });
+    }
+    setInterval(function () {
+        fetch('/api/tasks-data/')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.status === 'success') updateSidebarCounters(data.counters);
+            })
+            .catch(function () {});
+    }, 60000);
+})();
+</script>
 {% endblock %}

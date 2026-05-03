@@ -633,6 +633,22 @@
         return cookieValue;
     }
 
+    function updateSidebarCounters(counters) {
+        if (!counters) return;
+        const map = {
+            'active_count': 'active_count',
+            'planned_count': 'planned_count',
+            'favorites_count': 'favorites_count',
+            'urgent_count': 'urgent_count',
+            'overdue_count': 'overdue_count',
+            'completed_count': 'completed_count',
+        };
+        Object.keys(map).forEach(key => {
+            const els = document.querySelectorAll(`[data-counter="${key}"]`);
+            els.forEach(el => { el.textContent = counters[key] ?? el.textContent; });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         // Toast notification function
         function showToast(message, type = 'success') {
@@ -734,7 +750,7 @@
                     : '<p class="muted" style="margin: 0;">У этой задачи пока нет подзадач.</p>';
 
                 const completeButton = task.is_completed
-                    ? `<button type="button" class="button button--primary button--small js-complete-task-modal" data-task-id="${task.id}">Восстановить</button>`
+                    ? `<button type="button" class="button button--success button--small js-complete-task-modal" data-task-id="${task.id}">Восстановить</button>`
                     : `<button type="button" class="button button--success button--small js-complete-task-modal" data-task-id="${task.id}">Завершить задачу</button>`;
 
                 const modalHtml = `
@@ -976,8 +992,9 @@
                     showToast('Задача ' + (wasCompleted ? 'восстанавливается' : 'завершается') + '...', 'success');
 
                     // Redirect to complete/restore endpoint after a short delay
+                    const endpoint = wasCompleted ? 'restore' : 'complete';
                     setTimeout(() => {
-                        window.location.href = `/task/${taskId}/complete/`;
+                        window.location.href = `/task/${taskId}/${endpoint}/`;
                     }, 100);
                 });
             }
@@ -1459,6 +1476,9 @@
                             countEl.textContent = count;
                         }
                     });
+
+                    // Update sidebar counters
+                    updateSidebarCounters(data.counters);
                 }
             })
             .catch(err => console.error('Error fetching tasks data:', err));

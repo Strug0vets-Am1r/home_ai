@@ -829,31 +829,31 @@
 
                     <!-- Прогресс -->
                     <div class="sidebar__section">
-                        <div class="sidebar__section-title" style="color: var(--text-secondary);">Счётчики</div>
+                        <div class="sidebar__section-title" style="color: var(--text-secondary);">Прогресс</div>
                         <div class="progress-box" style="padding: 12px; font-size: 0.85rem; border-radius: 8px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
                                 <span style="color: var(--text-secondary);">Активные</span>
-                                <span style="font-weight: 700; color: var(--success); font-size: 1rem;">{{ active_count }}</span>
+                                <span style="font-weight: 700; color: var(--success); font-size: 1rem;" data-counter="active_count">{{ active_count }}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
                                 <span style="color: var(--text-secondary);">В планах</span>
-                                <span style="font-weight: 700; color: var(--primary); font-size: 1rem;">{{ planned_count }}</span>
+                                <span style="font-weight: 700; color: var(--primary); font-size: 1rem;" data-counter="planned_count">{{ planned_count }}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
                                 <span style="color: var(--text-secondary);">Избранные</span>
-                                <span style="font-weight: 700; color: var(--warning); font-size: 1rem;">{{ favorites_count }}</span>
+                                <span style="font-weight: 700; color: var(--warning); font-size: 1rem;" data-counter="favorites_count">{{ favorites_count }}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
                                 <span style="color: var(--text-secondary);">Срочные</span>
-                                <span style="font-weight: 700; color: #d946ef; font-size: 1rem;">{{ urgent_count }}</span>
+                                <span style="font-weight: 700; color: #d946ef; font-size: 1rem;" data-counter="urgent_count">{{ urgent_count }}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
                                 <span style="color: var(--text-secondary);">Просроченные</span>
-                                <span style="font-weight: 700; color: var(--danger); font-size: 1rem;">{{ overdue_count }}</span>
+                                <span style="font-weight: 700; color: var(--danger); font-size: 1rem;" data-counter="overdue_count">{{ overdue_count }}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span style="color: var(--text-secondary);">Выполненные</span>
-                                <span style="font-weight: 700; color: #9ca3af; font-size: 1rem;">{{ completed_count }}</span>
+                                <span style="font-weight: 700; color: #9ca3af; font-size: 1rem;" data-counter="completed_count">{{ completed_count }}</span>
                             </div>
                         </div>
                     </div>

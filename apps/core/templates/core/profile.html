@@ -14,12 +14,6 @@
 {% endblock %}
 
 {% block content %}
-{% if messages %}
-    {% for message in messages %}
-        <div class="alert alert--{{ message.tags }}" role="alert">{{ message }}</div>
-    {% endfor %}
-{% endif %}
-
 <div class="profile-container">
     <div class="profile-card">
         <div class="profile-header">
@@ -27,32 +21,25 @@
             <div class="profile-header__name">{{ request.user.username }}</div>
         </div>
 
-        <form method="post" class="profile-form">
-            {% csrf_token %}
-
+        <div id="view-mode">
             <div class="profile-section">
                 <div class="profile-section__title">Личные данные</div>
-
                 <div class="profile-grid">
                     <div class="profile-field">
-                        <label class="profile-field__label" for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
-                        {{ form.first_name }}
-                        {% if form.first_name.errors %}<div class="profile-field__error">{{ form.first_name.errors }}</div>{% endif %}
+                        <div class="profile-field__label">Имя</div>
+                        <div class="profile-field__value">{{ request.user.first_name|default:"Не указано" }}</div>
                     </div>
                     <div class="profile-field">
-                        <label class="profile-field__label" for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
-                        {{ form.last_name }}
-                        {% if form.last_name.errors %}<div class="profile-field__error">{{ form.last_name.errors }}</div>{% endif %}
+                        <div class="profile-field__label">Фамилия</div>
+                        <div class="profile-field__value">{{ request.user.last_name|default:"Не указано" }}</div>
                     </div>
                     <div class="profile-field">
-                        <label class="profile-field__label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
-                        {{ form.email }}
-                        {% if form.email.errors %}<div class="profile-field__error">{{ form.email.errors }}</div>{% endif %}
+                        <div class="profile-field__label">Email</div>
+                        <div class="profile-field__value">{{ request.user.email|default:"Не указано" }}</div>
                     </div>
                     <div class="profile-field">
-                        <label class="profile-field__label" for="{{ form.gender.id_for_label }}">{{ form.gender.label }}</label>
-                        {{ form.gender }}
-                        {% if form.gender.errors %}<div class="profile-field__error">{{ form.gender.errors }}</div>{% endif %}
+                        <div class="profile-field__label">Пол</div>
+                        <div class="profile-field__value">{{ request.user.get_gender_display|default:"Не указано" }}</div>
                     </div>
                 </div>
             </div>
@@ -61,48 +48,119 @@
 
             <div class="profile-section">
                 <div class="profile-section__title">Параметры дома</div>
-
                 <div class="profile-grid profile-grid--two">
                     <div class="profile-field">
-                        <label class="profile-field__label" for="{{ form.room_count.id_for_label }}">{{ form.room_count.label }}</label>
-                        {{ form.room_count }}
-                        {% if form.room_count.errors %}<div class="profile-field__error">{{ form.room_count.errors }}</div>{% endif %}
+                        <div class="profile-field__label">Количество комнат</div>
+                        <div class="profile-field__value">{{ request.user.room_count|default:"Не указано" }}</div>
                     </div>
                     <div class="profile-field">
-                        <label class="profile-field__label" for="{{ form.cleaning_frequency.id_for_label }}">{{ form.cleaning_frequency.label }}</label>
-                        {{ form.cleaning_frequency }}
-                        {% if form.cleaning_frequency.errors %}<div class="profile-field__error">{{ form.cleaning_frequency.errors }}</div>{% endif %}
+                        <div class="profile-field__label">Частота уборки</div>
+                        <div class="profile-field__value">{{ request.user.get_cleaning_frequency_display|default:"Не указано" }}</div>
                     </div>
                 </div>
-
-                <div class="profile-toggles">
-                    <label class="profile-toggle">
-                        {{ form.has_dishwasher }}
+                <div class="profile-toggles-view">
+                    <div class="profile-toggle-view {% if request.user.has_dishwasher %}active{% endif %}">
+                        <span class="toggle-indicator">{% if request.user.has_dishwasher %}✓{% else %}✗{% endif %}</span>
                         <span>Посудомоечная машина</span>
-                    </label>
-                    <label class="profile-toggle">
-                        {{ form.has_robot_vacuum }}
+                    </div>
+                    <div class="profile-toggle-view {% if request.user.has_robot_vacuum %}active{% endif %}">
+                        <span class="toggle-indicator">{% if request.user.has_robot_vacuum %}✓{% else %}✗{% endif %}</span>
                         <span>Робот-пылесос</span>
-                    </label>
-                    <label class="profile-toggle">
-                        {{ form.has_plants }}
+                    </div>
+                    <div class="profile-toggle-view {% if request.user.has_plants %}active{% endif %}">
+                        <span class="toggle-indicator">{% if request.user.has_plants %}✓{% else %}✗{% endif %}</span>
                         <span>Есть растения</span>
-                    </label>
-                    <label class="profile-toggle">
-                        {{ form.has_pets }}
+                    </div>
+                    <div class="profile-toggle-view {% if request.user.has_pets %}active{% endif %}">
+                        <span class="toggle-indicator">{% if request.user.has_pets %}✓{% else %}✗{% endif %}</span>
                         <span>Есть питомцы</span>
-                    </label>
+                    </div>
                 </div>
             </div>
 
             <div class="profile-actions">
-                <button type="submit" class="button button--success">Сохранить изменения</button>
-                <a href="{% url 'home' %}" class="button button--danger">Отмена</a>
+                <button type="button" onclick="enterEditMode()" class="button button--success">Редактировать</button>
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="button button--danger">Выйти</button>
+                </form>
             </div>
-        </form>
+        </div>
+
+        <div id="edit-mode" style="display: none;">
+            <form method="post" class="profile-form">
+                {% csrf_token %}
+
+                <div class="profile-section">
+                    <div class="profile-section__title">Личные данные</div>
+                    <div class="profile-grid">
+                        <div class="profile-field">
+                            <label class="profile-field__label" for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}<div class="profile-field__error">{{ form.first_name.errors }}</div>{% endif %}
+                        </div>
+                        <div class="profile-field">
+                            <label class="profile-field__label" for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}<div class="profile-field__error">{{ form.last_name.errors }}</div>{% endif %}
+                        </div>
+                        <div class="profile-field">
+                            <label class="profile-field__label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}<div class="profile-field__error">{{ form.email.errors }}</div>{% endif %}
+                        </div>
+                        <div class="profile-field">
+                            <label class="profile-field__label" for="{{ form.gender.id_for_label }}">{{ form.gender.label }}</label>
+                            {{ form.gender }}
+                            {% if form.gender.errors %}<div class="profile-field__error">{{ form.gender.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-divider"></div>
+
+                <div class="profile-section">
+                    <div class="profile-section__title">Параметры дома</div>
+                    <div class="profile-grid profile-grid--two">
+                        <div class="profile-field">
+                            <label class="profile-field__label" for="{{ form.room_count.id_for_label }}">{{ form.room_count.label }}</label>
+                            {{ form.room_count }}
+                            {% if form.room_count.errors %}<div class="profile-field__error">{{ form.room_count.errors }}</div>{% endif %}
+                        </div>
+                        <div class="profile-field">
+                            <label class="profile-field__label" for="{{ form.cleaning_frequency.id_for_label }}">{{ form.cleaning_frequency.label }}</label>
+                            {{ form.cleaning_frequency }}
+                            {% if form.cleaning_frequency.errors %}<div class="profile-field__error">{{ form.cleaning_frequency.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="profile-toggles">
+                        <label class="profile-toggle">
+                            {{ form.has_dishwasher }}
+                            <span>Посудомоечная машина</span>
+                        </label>
+                        <label class="profile-toggle">
+                            {{ form.has_robot_vacuum }}
+                            <span>Робот-пылесос</span>
+                        </label>
+                        <label class="profile-toggle">
+                            {{ form.has_plants }}
+                            <span>Есть растения</span>
+                        </label>
+                        <label class="profile-toggle">
+                            {{ form.has_pets }}
+                            <span>Есть питомцы</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="profile-actions">
+                    <button type="submit" class="button button--success">Сохранить изменения</button>
+                    <button type="button" onclick="exitEditMode()" class="button button--danger">Отмена</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
-
 <style>
     .profile-container {
         max-width: 1060px;
@@ -120,6 +178,7 @@
         flex: 1;
         display: flex;
         flex-direction: column;
+        position: relative;
     }
 
     .profile-header {
@@ -189,6 +248,54 @@
         font-weight: 600;
         font-size: 0.88rem;
         color: var(--text);
+    }
+
+    .profile-field__value {
+        font-size: 0.9rem;
+        padding: 9px 12px;
+        border: 1.5px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: var(--surface);
+        color: var(--text);
+        line-height: 1.5;
+    }
+
+    .profile-toggles-view {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .profile-toggle-view {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 13px;
+        border: 1.5px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: var(--surface);
+        font-size: 0.88rem;
+        font-weight: 500;
+        color: var(--text);
+    }
+
+    .profile-toggle-view.active {
+        border-color: var(--primary);
+        background: color-mix(in srgb, var(--primary) 4%, var(--surface));
+    }
+
+    .toggle-indicator {
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .profile-toggle-view.active .toggle-indicator {
+        color: var(--primary);
     }
 
     .profile-field .input,
@@ -275,6 +382,7 @@
         flex-wrap: wrap;
         padding-top: 16px;
         margin-top: auto;
+        width: 100%;
     }
 
     .profile-actions .button {
@@ -348,6 +456,16 @@
             })
             .catch(function () {});
     }, 60000);
+
+    window.enterEditMode = function() {
+        document.getElementById('view-mode').style.display = 'none';
+        document.getElementById('edit-mode').style.display = 'block';
+    };
+
+    window.exitEditMode = function() {
+        document.getElementById('edit-mode').style.display = 'none';
+        document.getElementById('view-mode').style.display = 'block';
+    };
 })();
 </script>
 {% endblock %}

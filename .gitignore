@@ -8,8 +8,6 @@ __pycache__/
 # Виртуальные окружения
 venv/
 .venv/
-env/
-ENV/
 ml_service/venv_ml/
 
 # Переменные окружения
@@ -30,21 +28,19 @@ db.sqlite3
 # Логи
 *.log
 
-# Кэш инструментов
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Coverage
-.coverage
-.coverage.*
-
 # IDE
 .idea/
 .vscode/
 
-# Celery Beat (автоматически генерируемые файлы)
+# Celery Beat (покрывает все файлы: celerybeat-schedule, -shm, -wal)
 celerybeat-schedule*
+
+# Django
+local_settings.py
+settings_local.py
+
+# Redis
+dump.rdb
 
 # AI assistant files
 AGENTS.md

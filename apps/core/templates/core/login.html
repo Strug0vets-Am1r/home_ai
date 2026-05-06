@@ -2,18 +2,19 @@
 
 {% block title %}Вход{% endblock %}
 
-{% block content %}
-<div class="hero">
-    <div>
-        <div class="eyebrow">Добро пожаловать</div>
-        <h1 class="hero__title">Вход</h1>
+{% block topbar %}
+<div class="topbar">
+    <div style="display: flex; align-items: center; gap: 16px; position: relative;">
+        <h1 class="topbar__title" id="topbar-title">Вход</h1>
     </div>
-    <p class="hero__meta">
-        Войди в аккаунт, чтобы видеть свои задачи и календарь.
-    </p>
+    <div class="topbar__actions">
+        <a href="{% url 'home' %}" class="topbar__close-btn" title="Закрыть" style="text-decoration: none;">×</a>
+    </div>
 </div>
+{% endblock %}
 
-<div class="panel" style="max-width: 560px;">
+{% block content %}
+<div class="panel" style="max-width: 560px; margin:0 auto;">
     <div class="panel__body">
         <form method="post" class="form-grid">
             {% csrf_token %}
@@ -36,4 +37,11 @@
         </p>
     </div>
 </div>
+
+<style>
+    .form-grid {
+        display: grid;
+        gap: 14px;
+    }
+</style>
 {% endblock %}

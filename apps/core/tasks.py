@@ -1,181 +1,68 @@
-"""
-Celery таски для асинхронной обработки
-"""
 from celery import shared_task
+import traceback
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
-import requests
-import json
-import logging
+from .models import TaskHistory, RecurringSuggestion, Category
 
-logger = logging.getLogger(__name__)
-
-
-# ── Таски для генерации подзадач ──
-@shared_task(bind=True, max_retries=3)
-def generate_subtasks_async(self, task_id):
+@shared_task
+def analyze_recurring_patterns():
     """
-    Асинхронно генерирует подзадачи через AI Service
-
-    :param task_id: ID задачи в БД
+    Celery-задача: анализ истории выполненных задач для поиска повторяющихся паттернов.
+    Вызывается раз в день (Celery Beat).
     """
-    from apps.core.models import Task, Subtask
-
     try:
-        task = Task.objects.get(id=task_id)
-        logger.info(f"🤖 Генерируем подзадачи для задачи {task_id}: {task.title}")
+        User = get_user_model()
+        users = User.objects.all()
 
-        # Вызываем AI Service
-        response = requests.post(
-            'http://localhost:8002/api/subtasks/generate',
-            json={
-                'task_title': task.title,
-                'task_description': task.description or '',
-                'user_gender': getattr(task.user, 'gender', None),
-                'user_id': task.user.id
-            },
-            timeout=60
-        )
+        for user in users:
+            # Берём историю за последние 90 дней
+            cutoff = timezone.now() - timedelta(days=90)
+            history = TaskHistory.objects.filter(
+                user=user,
+                completed_at__gte=cutoff
+            ).order_by('completed_at')
 
-        if response.status_code == 200:
-            data = response.json()
+            if history.count() < 3:
+                continue
 
-            if data.get('success'):
-                subtasks = data.get('subtasks', [])
+            # Группируем по названию задачи (точное совпадение)
+            task_groups = {}
+            for entry in history:
+                title = entry.task_title.lower().strip()
+                task_groups.setdefault(title, []).append(entry.completed_at)
 
-                # Сохраняем подзадачи в БД
-                for subtitle in subtasks:
-                    Subtask.objects.create(
-                        parent_task=task,
-                        title=subtitle,
-                        is_completed=False
-                    )
+            for title, dates in task_groups.items():
+                if len(dates) < 3:
+                    continue
 
-                logger.info(f"✅ Сгенерировано {len(subtasks)} подзадач для задачи {task_id}")
+                # Вычисляем интервалы между выполнениями
+                intervals = [(dates[i+1] - dates[i]).days for i in range(len(dates)-1)]
+                if not intervals:
+                    continue
 
-                # Публикуем событие
-                publish_event('task.subtasks_generated', {
-                    'task_id': task_id,
-                    'subtask_count': len(subtasks),
-                    'user_id': task.user.id
-                })
+                avg_interval = sum(intervals) // len(intervals)
+                # Проверяем стабильность (отклонение не более 2 дней)
+                if all(abs(i - avg_interval) <= 2 for i in intervals) and avg_interval >0:
+                    # Проверяем, нет ли уже активного предложения для этой задачи
+                    exists = RecurringSuggestion.objects.filter(
+                        user=user,
+                        title__iexact=title,
+                        status='pending'
+                    ).exists()
+                    if not exists:
+                        # Пытаемся найти категорию по названию
+                        category = Category.objects.filter(
+                            user=user,
+                            name__icontains=title.split()[0]
+                        ).first()
 
-                return {
-                    'success': True,
-                    'task_id': task_id,
-                    'subtask_count': len(subtasks)
-                }
-            else:
-                raise ValueError(data.get('error', 'Unknown error'))
-        else:
-            raise ValueError(f'AI Service error: {response.status_code}')
-
-    except Task.DoesNotExist:
-        logger.error(f"❌ Задача {task_id} не найдена")
-        return {'success': False, 'error': 'Task not found'}
-
+                        RecurringSuggestion.objects.create(
+                            user=user,
+                            title=title.capitalize(),
+                            category=category,
+                            interval_days=avg_interval,
+                        )
     except Exception as e:
-        logger.error(f"❌ Ошибка при генерации подзадач: {str(e)}")
-
-        # Retry через 5 минут
-        try:
-            self.retry(countdown=300)
-        except Exception:
-            return {'success': False, 'error': str(e)}
-
-
-# ── Таски для мониторинга ──
-@shared_task
-def check_overdue_tasks():
-    """
-    Проверяет просроченные задачи каждый час
-    """
-    from apps.core.models import Task
-
-    now = timezone.now()
-    overdue_tasks = Task.objects.filter(
-        due_date__lt=now,
-        is_completed=False
-    )
-
-    count = overdue_tasks.count()
-    logger.info(f"⏰ Найдено {count} просроченных задач")
-
-    # Публикуем событие
-    for task in overdue_tasks:
-        publish_event('task.overdue', {
-            'task_id': task.id,
-            'task_title': task.title,
-            'user_id': task.user.id,
-            'due_date': str(task.due_date)
-        })
-
-    return {'overdue_count': count}
-
-
-@shared_task
-def cleanup_old_history():
-    """
-    Удаляет историю задач старше 30 дней
-    """
-    from apps.core.models import TaskHistory
-
-    cutoff_date = timezone.now() - timedelta(days=30)
-    deleted_count, _ = TaskHistory.objects.filter(
-        created_at__lt=cutoff_date
-    ).delete()
-
-    logger.info(f"🧹 Удалена история {deleted_count} старых задач")
-
-    return {'deleted_count': deleted_count}
-
-
-# ── Event система ──
-def publish_event(event_type: str, data: dict):
-    """
-    Публикует событие в Redis Pub/Sub
-
-    :param event_type: Тип события (task.created, task.completed и т.д.)
-    :param data: Данные события
-    """
-    import redis
-    import os
-
-    try:
-        redis_host = os.getenv('REDIS_HOST', 'localhost')
-        redis_port = int(os.getenv('REDIS_PORT', 6379))
-        redis_db = int(os.getenv('REDIS_DB', 0))
-
-        redis_client = redis.Redis(
-            host=redis_host,
-            port=redis_port,
-            db=redis_db,
-            decode_responses=True
-        )
-
-        event = {
-            'type': event_type,
-            'data': data,
-            'timestamp': str(timezone.now())
-        }
-
-        redis_client.publish(
-            'homeai:events',
-            json.dumps(event)
-        )
-
-        logger.info(f"📢 Событие опубликовано: {event_type}")
-
-    except Exception as e:
-        logger.warning(f"⚠️ Ошибка при публикации события: {e}")
-
-
-# ── Таски для интеграции ──
-@shared_task
-def sync_with_external_api():
-    """
-    Синхронизирует данные с внешними API
-    """
-    logger.info("🔄 Синхронизируем с внешними API")
-    # Здесь можно добавить интеграцию с Google Calendar и т.д.
-    return {'status': 'synced'}
+        print(f"Error in analyze_recurring_patterns: {e}")
+        traceback.print_exc()

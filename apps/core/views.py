@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.db.models import Count, Prefetch, Q
 from django.conf import settings
 
-from .models import User, Task, TaskHistory, Category
+from .models import User, Task, TaskHistory, Category, RecurringSuggestion
 from .forms import TaskForm, ProfileForm, CategoryForm
 
 import datetime
@@ -967,3 +967,117 @@ def category_delete(request, category_id):
         category.delete()
         messages.success(request, f'Категория «{name}» удалена.')
     return redirect('categories')
+
+
+def analyze_recurring_patterns():
+    """
+    Celery-задача: анализ истории выполненных задач для поиска повторяющихся паттернов.
+    Вызывается раз в день (Celery Beat).
+    """
+    from django.contrib.auth import get_user_model
+    from django.db.models import Count, Min, Max
+    from datetime import timedelta
+
+    User = get_user_model()
+    users = User.objects.all()
+
+    for user in users:
+        # Берём историю за последние 90 дней
+        cutoff = timezone.now() - timedelta(days=90)
+        history = TaskHistory.objects.filter(
+            user=user,
+            completed_at__gte=cutoff
+        ).order_by('completed_at')
+
+        if history.count() < 3:
+            continue
+
+        # Группируем по названию задачи (нечёткое сравнение — упрощённо: точное совпадение)
+        task_groups = {}
+        for entry in history:
+            title = entry.task_title.lower().strip()
+            task_groups.setdefault(title, []).append(entry.completed_at)
+
+        for title, dates in task_groups.items():
+            if len(dates) < 3:
+                continue
+
+            # Вычисляем интервалы между выполнениями
+            intervals = [(dates[i+1] - dates[i]).days for i in range(len(dates)-1)]
+            if not intervals:
+                continue
+
+            avg_interval = sum(intervals) // len(intervals)
+            # Проверяем стабильность (отклонение не более 2 дней)
+            if all(abs(i - avg_interval) <= 2 for i in intervals) and avg_interval > 0:
+                # Проверяем, нет ли уже активного предложения для этой задачи
+                exists = RecurringSuggestion.objects.filter(
+                    user=user,
+                    title__iexact=title,
+                    status='pending'
+                ).exists()
+                if not exists:
+                    # Пытаемся найти категорию по названию
+                    category = Category.objects.filter(
+                        user=user,
+                        name__icontains=title.split()[0]
+                    ).first()
+
+                    RecurringSuggestion.objects.create(
+                        user=user,
+                        title=title.capitalize(),
+                        category=category,
+                        interval_days=avg_interval,
+                    )
+
+
+@login_required
+def suggestions_api(request):
+    """
+    API для получения активных предложений пользователя (JSON).
+    GET: возвращает список предложений со статусом 'pending'.
+    POST: обрабатывает ответ пользователя (accept/reject).
+    """
+    if request.method == 'GET':
+        suggestions = RecurringSuggestion.objects.filter(
+            user=request.user,
+            status='pending'
+        ).values('id', 'title', 'interval_days', 'category__name')
+        return JsonResponse({'suggestions': list(suggestions)})
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            suggestion_id = data.get('suggestion_id')
+            action = data.get('action')  # 'accept' или 'reject'
+
+            suggestion = get_object_or_404(
+                RecurringSuggestion,
+                id=suggestion_id,
+                user=request.user
+            )
+
+            if suggestion.status != 'pending':
+                return JsonResponse({'error': 'Предложение уже обработано'}, status=400)
+
+            if action == 'accept':
+                suggestion.status = 'accepted'
+                suggestion.save()
+                # Создаём задачу на сегодня
+                Task.objects.create(
+                    user=request.user,
+                    title=suggestion.title,
+                    description=f'Автоматически добавлено из предложения (каждые {suggestion.interval_days} дн.)',
+                    due_date=timezone.now(),
+                    category=suggestion.category,
+                )
+                return JsonResponse({'ok': True, 'message': f'Задача «{suggestion.title}» добавлена!'})
+
+            elif action == 'reject':
+                suggestion.status = 'rejected'
+                suggestion.save()
+                return JsonResponse({'ok': True, 'message': 'Предложение отклонено'})
+
+            return JsonResponse({'error': 'Неизвестное действие'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)

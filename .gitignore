@@ -44,3 +44,6 @@ dump.rdb
 
 # AI assistant files
 AGENTS.md
+
+# Project documentation (binary)
+*.docx

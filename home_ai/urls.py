@@ -34,4 +34,5 @@ urlpatterns = [
     path('api/tasks-data/', views.api_tasks_data, name='api_tasks_data'),
     path('api/tasks/<int:task_id>/subtasks/', views.api_task_subtasks, name='api_task_subtasks'),
     path('api/generate-subtasks/', views.api_generate_subtasks, name='api_generate_subtasks'),
+    path('api/suggestions/', views.suggestions_api, name='suggestions_api'),
 ]

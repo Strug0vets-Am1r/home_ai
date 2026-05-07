@@ -114,3 +114,24 @@ class TaskHistory(models.Model):
 
     def __str__(self):
         return f'{self.task_title} - {self.completed_at:%d.%m.%Y %H:%M}'
+
+
+class RecurringSuggestion(models.Model):
+    SUGGESTION_CHOICES = [
+        ('pending', 'Ожидает'),
+        ('accepted', 'Принято'),
+        ('rejected', 'Отклонено'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='suggestions')
+    title = models.CharField(max_length=255)
+    category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.SET_NULL)
+    interval_days = models.IntegerField()
+    suggested_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=SUGGESTION_CHOICES, default='pending')
+
+    class Meta:
+        ordering = ['-suggested_date']
+
+    def __str__(self):
+        return f'{self.title} (каждые {self.interval_days} дн.) - {self.get_status_display()}'

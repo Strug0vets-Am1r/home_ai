@@ -1005,10 +1005,34 @@
                 deleteBtn.addEventListener('click', function (event) {
                     event.preventDefault();
                     event.stopPropagation();
-
-                    if (confirm('Вы уверены, что хотите удалить эту задачу?')) {
-                        window.location.href = `/task/${task.id}/delete/`;
-                    }
+                    showConfirmModal(
+                        'Удаление задачи',
+                        `Вы уверены, что хотите удалить задачу «${task.title}»? Это действие необратимо.`,
+                        function () {
+                            fetch(`/task/${task.id}/delete/`, {
+                                method: 'POST',
+                                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                            })
+                            .then(() => {
+                                closeTaskModal(modal);
+                                // Remove task from data
+                                tasksData.tasks = tasksData.tasks.filter(t => t.id !== task.id);
+                                tasksData.completed_tasks = tasksData.completed_tasks.filter(t => t.id !== task.id);
+                                // Re-render current view
+                                const currentView = sessionStorage.getItem('selectedTaskView');
+                                if (currentView && currentView !== 'tiles') {
+                                    showFilteredView(currentView);
+                                } else {
+                                    location.reload();
+                                }
+                                showToast(`Задача «${task.title}» удалена!`, 'success');
+                            })
+                            .catch(err => {
+                                console.error('Error deleting task:', err);
+                                showToast('Ошибка при удалении задачи.', 'danger');
+                            });
+                        }
+                    );
                 });
             }
 

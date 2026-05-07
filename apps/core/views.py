@@ -699,7 +699,7 @@ def task_delete(request, task_id):
         messages.success(request, f'Задача "{title}" удалена!')
         return _redirect_back(request)
 
-    return render(request, 'core/task_confirm_delete.html', {'task': task})
+    return _redirect_back(request)
 
 
 @login_required

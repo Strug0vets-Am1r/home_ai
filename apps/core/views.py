@@ -133,59 +133,60 @@ def survey(request):
 
 
 def generate_initial_tasks(user):
-    now = timezone.localtime().replace(second=0, microsecond=0)
+    now = timezone.localtime()
     remainder = now.minute % 5
     delta = (5 - remainder) if remainder else 5
-    base = now + datetime.timedelta(minutes=delta)
+    base = (now + datetime.timedelta(minutes=delta)).replace(second=0, microsecond=0)
+    base_utc = timezone.localtime(base, timezone.utc)
 
     tasks = [
         {
             'title': 'Вынести мусор',
-            'due_date': base + datetime.timedelta(days=1)
+            'due_date': base_utc + datetime.timedelta(days=1)
         },
         {
             'title': 'Протереть пыль',
-            'due_date': base + datetime.timedelta(days=2)
+            'due_date': base_utc + datetime.timedelta(days=2)
         },
     ]
 
     if user.has_dishwasher:
         tasks.append({
             'title': 'Загрузить посудомойку и запустить',
-            'due_date': base + datetime.timedelta(days=1)
+            'due_date': base_utc + datetime.timedelta(days=1)
         })
 
     if user.has_robot_vacuum:
         tasks.append({
             'title': 'Запустить робот-пылесос',
-            'due_date': base + datetime.timedelta(days=1)
+            'due_date': base_utc + datetime.timedelta(days=1)
         })
 
     if user.has_plants:
         tasks.append({
             'title': 'Полить растения',
-            'due_date': base + datetime.timedelta(days=3)
+            'due_date': base_utc + datetime.timedelta(days=3)
         })
 
     if user.has_pets:
         tasks.append({
             'title': 'Покормить питомца',
-            'due_date': base + datetime.timedelta(hours=12)
+            'due_date': base_utc + datetime.timedelta(hours=12)
         })
         tasks.append({
             'title': 'Убрать за питомцем',
-            'due_date': base + datetime.timedelta(days=1)
+            'due_date': base_utc + datetime.timedelta(days=1)
         })
 
     if user.cleaning_frequency == 'daily':
         tasks.append({
             'title': 'Влажная уборка',
-            'due_date': base + datetime.timedelta(days=1)
+            'due_date': base_utc + datetime.timedelta(days=1)
         })
     elif user.cleaning_frequency == 'weekly':
         tasks.append({
             'title': 'Влажная уборка',
-            'due_date': base + datetime.timedelta(days=7)
+            'due_date': base_utc + datetime.timedelta(days=7)
         })
 
     for task_data in tasks:
@@ -281,6 +282,13 @@ def restore_task(request, task_id):
     task.is_completed = False
     task.save(update_fields=['is_completed', 'updated_at'])
 
+    _publish_task_event('task.restored', {
+        'user_id': request.user.id,
+        'task_id': task.id,
+        'task_title': task.title,
+        'task_list': task.task_list,
+    })
+
     messages.success(request, f'Задача "{task.title}" снова активна!')
     return _redirect_back(request)
 
@@ -324,6 +332,10 @@ def clear_completed_tasks(request):
         ).delete()
 
         if deleted_count > 0:
+            _publish_task_event('tasks.cleared', {
+                'user_id': request.user.id,
+                'count': deleted_count,
+            })
             messages.success(request, 'Выполненные задачи очищены.')
         else:
             messages.info(request, 'Нет выполненных задач для очистки.')
@@ -378,6 +390,7 @@ def api_tasks_data(request):
             'title': task.title,
             'description': task.description or '',
             'due_date': local_due.isoformat(),
+            'due_date_display': local_due.strftime('%d.%m.%Y %H:%M'),
             'is_completed': task.is_completed,
             'is_favorite': task.is_favorite,
             'task_list': task.task_list,
@@ -659,6 +672,13 @@ def task_create(request):
                     task_list=task.task_list
                 )
 
+            _publish_task_event('task.created', {
+                'user_id': request.user.id,
+                'task_id': task.id,
+                'task_title': task.title,
+                'task_list': task.task_list,
+            })
+
             messages.success(request, f'Задача "{task.title}" создана!')
             return _redirect_back(request)
     else:
@@ -706,6 +726,13 @@ def task_edit(request, task_id):
                     parent_task=task
                 )
 
+            _publish_task_event('task.updated', {
+                'user_id': request.user.id,
+                'task_id': task.id,
+                'task_title': task.title,
+                'task_list': task.task_list,
+            })
+
             messages.success(request, f'Задача "{task.title}" обновлена!')
             return _redirect_back(request)
     else:
@@ -725,6 +752,11 @@ def task_delete(request, task_id):
     title = task.title
 
     if request.method == 'POST':
+        _publish_task_event('task.deleted', {
+            'user_id': request.user.id,
+            'task_id': task.id,
+            'task_title': title,
+        })
         task.delete()
         messages.success(request, f'Задача "{title}" удалена!')
         return _redirect_back(request)
@@ -809,6 +841,13 @@ def generate_subtasks_view(request, task_id):
             )
             created_count += 1
 
+        _publish_task_event('subtask.generated', {
+            'user_id': request.user.id,
+            'task_id': task.id,
+            'task_title': task.title,
+            'subtask_count': created_count,
+        })
+
         return JsonResponse({
             'success': True,
             'task_id': task.id,
@@ -823,54 +862,6 @@ def generate_subtasks_view(request, task_id):
             'message': str(e),
             'trace': traceback.format_exc()
         }, status=500)
-
-
-@login_required
-def task_create_with_ai(request):
-    if request.method == 'POST':
-        title = (request.POST.get('title') or '').strip()
-        description = (request.POST.get('description') or '').strip()
-        due_date_raw = request.POST.get('due_date')
-
-        from django.utils.dateparse import parse_datetime
-        due_date = parse_datetime(due_date_raw)
-
-        if not title or not due_date:
-            messages.error(request, 'Заполни название и дату задачи.')
-            return render(request, 'core/task_create_with_ai.html')
-
-        task = Task.objects.create(
-            user=request.user,
-            title=title,
-            description=description,
-            due_date=due_date
-        )
-
-        try:
-            subtasks = _generate_subtasks_with_yandex(title, description, request.user.gender)
-
-            for subtask_title in subtasks:
-                Task.objects.create(
-                    user=request.user,
-                    title=subtask_title,
-                    description='',
-                    due_date=due_date,
-                    parent_task=task
-                )
-
-            messages.success(
-                request,
-                f'Задача "{title}" создана вместе с {len(subtasks)} подзадачами!'
-            )
-        except Exception as e:
-            messages.warning(
-                request,
-                f'Задача "{title}" создана, но подзадачи не сгенерировались: {str(e)}'
-            )
-
-        return _redirect_back(request)
-
-    return render(request, 'core/task_create_with_ai.html')
 
 
 @login_required
@@ -933,6 +924,13 @@ def api_generate_subtasks(request):
                 )
                 created_count += 1
 
+            _publish_task_event('subtask.generated', {
+                'user_id': request.user.id,
+                'task_id': parent_task.id,
+                'task_title': parent_task.title,
+                'subtask_count': created_count,
+            })
+
             return JsonResponse({
                 'status': 'success',
                 'subtasks': subtasks,
@@ -964,6 +962,7 @@ def profile(request):
             return redirect('profile')
     else:
         form = ProfileForm(instance=request.user)
+
     return render(request, 'core/profile.html', {'form': form})
 
 

@@ -175,6 +175,8 @@ services:
       DJANGO_API_URL: http://task-service:8000
     ports:
       - "8003:8003"
+    volumes:
+      - ./notification_service:/app
     depends_on:
       redis:
         condition: service_healthy

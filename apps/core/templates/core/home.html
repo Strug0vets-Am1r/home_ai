@@ -1026,6 +1026,10 @@
                                     location.reload();
                                 }
                                 showToast(`Задача «${task.title}» удалена!`, 'success');
+                                fetch('/api/tasks-data/')
+                                    .then(function (r) { return r.json(); })
+                                    .then(function (data) { updateSidebarCounters(data.counters); })
+                                    .catch(function () {});
                             })
                             .catch(err => {
                                 console.error('Error deleting task:', err);
@@ -1440,6 +1444,10 @@
                             }
 
                             showToast(`Удалено ${completedCount} задач!`, 'success');
+                            fetch('/api/tasks-data/')
+                                .then(function (r) { return r.json(); })
+                                .then(function (data) { updateSidebarCounters(data.counters); })
+                                .catch(function () {});
                         })
                         .catch(err => {
                             console.error('Error clearing completed tasks:', err);

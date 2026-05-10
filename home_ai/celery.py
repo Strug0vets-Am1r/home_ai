@@ -17,17 +17,9 @@ app.autodiscover_tasks()
 
 # Beat schedule (периодические задачи)
 app.conf.beat_schedule = {
-    'check-overdue-tasks': {
-        'task': 'apps.core.tasks.check_overdue_tasks',
-        'schedule': crontab(minute=0, hour='*'),  # Каждый час
-    },
-    'cleanup-old-history': {
-        'task': 'apps.core.tasks.cleanup_old_history',
-        'schedule': crontab(minute=0, hour=2),  # В 2:00 AM
-    },
-    'analyze-recurring-patterns': {
-        'task': 'apps.core.tasks.analyze_recurring_patterns',
-        'schedule': 86400.0,  # Раз в день (в секундах)
+    'send-task-reminders': {
+        'task': 'apps.core.tasks.send_task_reminders',
+        'schedule': crontab(minute='*/5'),  # Каждые 5 минут
     },
 }
 

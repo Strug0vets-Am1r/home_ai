@@ -30,9 +30,9 @@
             --border-color: #e8ecf0;
 
             --primary: #0066ff;
-            --primary-2: #0052cc;
             --success: #00cc66;
             --warning: #ff9900;
+            --suggestions: #f691c5;
             --danger: #ff3333;
 
             --radius-sm: 8px;
@@ -56,9 +56,9 @@
             --border: 1.5px solid #3a3a3a;
 
             --primary: #0066ff;
-            --primary-2: #0052cc;
             --success: #00cc66;
             --warning: #ff9900;
+            --suggestions: #f691c5;
             --danger: #ff3333;
 
             color-scheme: dark;
@@ -139,6 +139,7 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            position: relative;
         }
 
         .sidebar__brand {
@@ -159,7 +160,7 @@
             align-items: center;
             justify-content: center;
             border-radius: 10px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-2));
+            background: var(--primary);
             color: white;
             flex-shrink: 0;
         }
@@ -328,9 +329,9 @@
             height: 40px;
             padding: 0 18px;
             border-radius: 10px;
-            border: 1.5px solid color-mix(in srgb, var(--warning) 30%, var(--border-color));
-            background: color-mix(in srgb, var(--warning) 12%, var(--surface));
-            color: var(--warning);
+            border: 1.5px solid color-mix(in srgb, var(--suggestions) 30%, var(--border-color));
+            background: color-mix(in srgb, var(--suggestions) 12%, var(--surface));
+            color: var(--suggestions);
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
@@ -340,33 +341,16 @@
         }
 
         .topbar__center-btn:hover {
-            background: color-mix(in srgb, var(--warning) 18%, var(--surface));
+            background: color-mix(in srgb, var(--suggestions) 18%, var(--surface));
             text-decoration: none;
             transform: translate(-50%, -50%) translateY(-1px);
         }
 
         .topbar__center-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 18px;
-            height: 18px;
-            padding: 0 5px;
-            border-radius: 999px;
-            background: var(--warning);
-            color: white;
-            font-size: 11px;
+            display: inline;
             font-weight: 700;
-            line-height: 1;
-        }
-
-        /* ── Main Area ── */
-        .main-area {
-            flex: 1;
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
+            font-size: 1rem;
+            color: var(--suggestions);
         }
 
         .topbar {
@@ -442,6 +426,152 @@
             font-weight: 600;
         }
 
+        /* ── Notifications ── */
+        .notif-btn {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition);
+            flex-shrink: 0;
+        }
+        .notif-btn:hover {
+            background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+            color: var(--text);
+            border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
+        }
+        .notif-btn__badge {
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 4px;
+            border-radius: 999px;
+            background: var(--danger);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            border: 1.5px solid var(--surface);
+            pointer-events: none;
+        }
+        .notif-btn__badge.is-hidden { display: none; }
+
+        .notif-dropdown {
+            position: fixed;
+            z-index: 10000;
+            width: 340px;
+            max-height: 460px;
+            background: var(--surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-4px);
+            transition: opacity var(--transition), visibility var(--transition), transform var(--transition);
+        }
+        .notif-dropdown.is-open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .notif-dropdown__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-bottom: 1.5px solid var(--border-color);
+        }
+        .notif-dropdown__title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .notif-dropdown__clear {
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all var(--transition);
+            font-family: var(--font-body);
+        }
+        .notif-dropdown__clear:hover {
+            background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+            color: var(--danger);
+        }
+        .notif-dropdown__body {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 360px;
+        }
+        .notif-dropdown__empty {
+            padding: 32px 16px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .notif-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background var(--transition);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .notif-item:hover { background: color-mix(in srgb, var(--primary) 4%, var(--surface)); }
+        .notif-item--unread { background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
+        .notif-item--unread:hover { background: color-mix(in srgb, var(--primary) 10%, var(--surface)); }
+        .notif-item__icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+        .notif-item__body { flex: 1; min-width: 0; }
+        .notif-item__title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin: 0 0 2px;
+        }
+        .notif-item__message {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .notif-item__time {
+            font-size: 11px;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+            opacity: 0.7;
+        }
+
         /* ── Content Area ── */
         .content {
             flex: 1;
@@ -464,6 +594,14 @@
 
         .content::-webkit-scrollbar-thumb:hover {
             background: var(--text-secondary);
+        }
+
+        /* ── Main Area ── */
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
         }
 
         /* ── Footer ── */
@@ -826,6 +964,18 @@
 <body>
     <a class="skip-link" href="#content">Перейти к содержимому</a>
 
+    {% if user.is_authenticated %}
+    <div class="notif-dropdown" id="notif-dropdown">
+        <div class="notif-dropdown__header">
+            <span class="notif-dropdown__title">Уведомления</span>
+            <button type="button" class="notif-dropdown__clear" id="notif-clear-all">Прочитано</button>
+        </div>
+        <div class="notif-dropdown__body" id="notif-list">
+            <div class="notif-dropdown__empty">Загрузка...</div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="app-container">
         <!-- ── Sidebar ── -->
         <aside class="sidebar">
@@ -839,6 +989,14 @@
                     </span>
                     <span style="font-size: 15px;">HomeAI</span>
                 </div>
+                {% if user.is_authenticated %}
+                <div class="notif-btn" id="notif-btn" title="Уведомления" data-sidebar-header>
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span class="notif-btn__badge is-hidden" id="notif-badge">0</span>
+                </div>
+                {% endif %}
                 <button id="theme-toggle-btn" style="width: 32px; height: 32px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all var(--transition); font-family: inherit;" title="Переключить тему">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
@@ -946,6 +1104,7 @@
                 {% if user.is_authenticated %}
                 {% if request.resolver_match.url_name == 'home' or request.resolver_match.url_name == 'calendar' or request.resolver_match.url_name == 'tracker' %}
                 <a href="{% url 'suggestions' %}" class="topbar__center-btn">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
                     Предложения
                     <span class="topbar__center-badge" id="topbar-suggestions-badge">0</span>
                 </a>
@@ -992,10 +1151,24 @@
     </div>
 
     <script>
+        (function () {
+            var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (document.cookie.indexOf('browser_timezone=' + encodeURIComponent(tz)) === -1) {
+                document.cookie = 'browser_timezone=' + encodeURIComponent(tz) + '; path=/; max-age=31536000';
+            }
+        })();
+
         window.dismissToast = function (el) {
             el.classList.add('is-hiding');
             el.addEventListener('animationend', function () { el.remove(); }, { once: true });
         };
+
+        function escHtml(str) {
+            if (!str) return '';
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
 
         (function () {
             const root = document.documentElement;
@@ -1097,6 +1270,185 @@
             }
         });
 
+        // ── Notifications ──
+        (function () {
+            {% if user.is_authenticated %}
+            const userId = {{ user.id }};
+            const notifBtn = document.getElementById('notif-btn');
+            const notifDropdown = document.getElementById('notif-dropdown');
+            const notifList = document.getElementById('notif-list');
+            const notifBadge = document.getElementById('notif-badge');
+            const notifClearAll = document.getElementById('notif-clear-all');
+
+            if (!notifBtn) return;
+
+            let notifications = [];
+            let ws = null;
+
+            // Notification service URL (port 8003 locally, proxied via nginx in prod)
+            const notifBase = 'http://' + window.location.hostname + ':8003';
+            const wsBase = 'ws://' + window.location.hostname + ':8003';
+
+            const NOTIF_ICONS = {
+                'task.created': { icon: '📋', bg: 'color-mix(in srgb, var(--primary) 14%, var(--surface))', color: 'var(--primary)' },
+                'task.completed': { icon: '✅', bg: 'color-mix(in srgb, var(--success) 14%, var(--surface))', color: 'var(--success)' },
+                'subtask.generated': { icon: '🤖', bg: 'color-mix(in srgb, var(--warning) 14%, var(--surface))', color: 'var(--warning)' },
+                'task.overdue': { icon: '⏰', bg: 'color-mix(in srgb, var(--danger) 14%, var(--surface))', color: 'var(--danger)' },
+                'task.restored': { icon: '↩️', bg: 'color-mix(in srgb, var(--primary) 14%, var(--surface))', color: 'var(--primary)' },
+                'task.updated': { icon: '✏️', bg: 'color-mix(in srgb, var(--primary) 14%, var(--surface))', color: 'var(--primary)' },
+                'task.deleted': { icon: '🗑️', bg: 'color-mix(in srgb, var(--danger) 14%, var(--surface))', color: 'var(--danger)' },
+                'tasks.cleared': { icon: '🧹', bg: 'color-mix(in srgb, var(--success) 14%, var(--surface))', color: 'var(--success)' },
+                'task.reminder': { icon: '⏳', bg: 'color-mix(in srgb, var(--primary) 14%, var(--surface))', color: 'var(--primary)' },
+            };
+            const DEFAULT_ICON = { icon: '🔔', bg: 'color-mix(in srgb, var(--primary) 14%, var(--surface))', color: 'var(--primary)' };
+
+            function getNotifIcon(type) {
+                return NOTIF_ICONS[type] || DEFAULT_ICON;
+            }
+
+            function timeAgo(dateStr) {
+                const now = new Date();
+                const d = new Date(dateStr);
+                const diff = Math.floor((now - d) / 1000);
+                if (diff < 60) return 'только что';
+                if (diff < 3600) return Math.floor(diff / 60) + 'м';
+                if (diff < 86400) return Math.floor(diff / 3600) + 'ч';
+                const days = Math.floor(diff / 86400);
+                return days + 'д';
+            }
+
+            function updateBadge() {
+                const unread = notifications.filter(function (n) { return !n.read; }).length;
+                if (unread > 0) {
+                    notifBadge.textContent = unread > 99 ? '99+' : unread;
+                    notifBadge.classList.remove('is-hidden');
+                } else {
+                    notifBadge.classList.add('is-hidden');
+                }
+            }
+
+            function renderNotifications() {
+                if (notifications.length === 0) {
+                    notifList.innerHTML = '<div class="notif-dropdown__empty">Нет уведомлений</div>';
+                    return;
+                }
+                var html = '';
+                notifications.forEach(function (n) {
+                    var meta = getNotifIcon(n.type);
+                    var cls = n.read ? '' : ' notif-item--unread';
+                    html += '<div class="notif-item' + cls + '" data-notif-key="' + (n.id || '') + '">'
+                        + '<div class="notif-item__icon" style="background:' + meta.bg + ';color:' + meta.color + ';">' + meta.icon + '</div>'
+                        + '<div class="notif-item__body">'
+                        + '<div class="notif-item__title">' + escHtml(n.title) + '</div>'
+                        + '<p class="notif-item__message">' + escHtml(n.message) + '</p>'
+                        + '</div>'
+                        + '<span class="notif-item__time">' + timeAgo(n.created_at) + '</span>'
+                        + '</div>';
+                });
+                notifList.innerHTML = html;
+                updateBadge();
+            }
+
+            function addNotification(n) {
+                notifications = notifications.filter(function (x) { return x.id !== n.id; });
+                n.read = notifDropdown.classList.contains('is-open');
+                notifications.unshift(n);
+                renderNotifications();
+            }
+
+            function fetchNotifications() {
+                return fetch(notifBase + '/api/notifications/user/' + userId + '?limit=50')
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.notifications) {
+                            notifications = data.notifications.map(function (n) {
+                                var key = n.user_id + ':' + n.created_at;
+                                n.id = key;
+                                return n;
+                            });
+                            renderNotifications();
+                        }
+                    })
+                    .catch(function () {});
+            }
+
+            function connectWebSocket() {
+                ws = new WebSocket(wsBase + '/ws/notifications/' + userId);
+
+                ws.onmessage = function (event) {
+                    try {
+                        var msg = JSON.parse(event.data);
+                        if (msg.type === 'notification' && msg.notification) {
+                            addNotification(msg.notification);
+                        }
+                    } catch (e) {}
+                };
+
+                ws.onclose = function () {
+                    setTimeout(connectWebSocket, 3000);
+                };
+
+                ws.onerror = function () {};
+            }
+
+            function positionDropdown() {
+                var rect = notifBtn.getBoundingClientRect();
+                var top = rect.bottom + 8;
+                var left = rect.left;
+                // Don't go off-screen
+                if (left + 340 > window.innerWidth) {
+                    left = window.innerWidth - 340 - 8;
+                }
+                notifDropdown.style.top = top + 'px';
+                notifDropdown.style.left = left + 'px';
+            }
+
+            function setupBellHandler() {
+                notifBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    var isOpen = notifDropdown.classList.contains('is-open');
+                    if (isOpen) {
+                        notifDropdown.classList.remove('is-open');
+                    } else {
+                        positionDropdown();
+                        notifDropdown.classList.add('is-open');
+                        notifications.forEach(function (n) { n.read = true; });
+                        updateBadge();
+                        fetch(notifBase + '/api/notifications/user/' + userId + '/read-all', { method: 'POST' }).catch(function () {});
+                    }
+                });
+            }
+
+            fetchNotifications().then(setupBellHandler).catch(setupBellHandler);
+
+            document.addEventListener('click', function (e) {
+                if (!notifDropdown.contains(e.target) && e.target !== notifBtn && !notifBtn.contains(e.target)) {
+                    notifDropdown.classList.remove('is-open');
+                }
+            });
+
+            window.addEventListener('resize', function () {
+                if (notifDropdown.classList.contains('is-open')) {
+                    positionDropdown();
+                }
+            });
+            window.addEventListener('scroll', function () {
+                if (notifDropdown.classList.contains('is-open')) {
+                    positionDropdown();
+                }
+            }, true);
+
+            if (notifClearAll) {
+                notifClearAll.addEventListener('click', function () {
+                    notifications = [];
+                    renderNotifications();
+                    fetch(notifBase + '/api/notifications/user/' + userId, { method: 'DELETE' }).catch(function () {});
+                });
+            }
+
+            connectWebSocket();
+            {% endif %}
+        })();
 
     </script>
 </body>

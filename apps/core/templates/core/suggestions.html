@@ -282,7 +282,7 @@
                 const remaining = document.querySelectorAll('.suggestion-card').length;
                 const topBadge = document.getElementById('topbar-suggestions-badge');
                 const sideBadge = document.getElementById('suggestions-badge-header');
-                if (topBadge) { topBadge.textContent = remaining; topBadge.style.display = remaining > 0 ? 'inline-flex' : 'none'; }
+                if (topBadge) { topBadge.textContent = remaining; topBadge.style.display = remaining > 0 ? 'inline' : 'none'; }
                 if (sideBadge) { sideBadge.textContent = remaining; sideBadge.style.display = remaining > 0 ? 'inline-flex' : 'none'; }
                 if (remaining === 0) {
                     location.reload();

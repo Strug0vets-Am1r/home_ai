@@ -1,4 +1,5 @@
 import datetime
+import zoneinfo
 
 from django import forms
 from django.utils import timezone
@@ -43,6 +44,10 @@ class TaskForm(forms.ModelForm):
         self.fields['category'].required = False
         self.fields['category'].empty_label = 'Без категории'
 
+        self.fields['browser_timezone'] = forms.CharField(
+            required=False, widget=forms.HiddenInput()
+        )
+
         now = timezone.localtime().replace(second=0, microsecond=0)
         now_str = now.strftime('%Y-%m-%dT%H:%M')
 
@@ -66,17 +71,35 @@ class TaskForm(forms.ModelForm):
 
     def clean_due_date(self):
         due_date = self.cleaned_data.get('due_date')
-        now = timezone.localtime().replace(second=0, microsecond=0)
+        browser_tz = self.data.get('browser_timezone') or self.initial.get('browser_timezone')
+        now_aware = timezone.localtime().replace(second=0, microsecond=0)
 
         if not due_date:
-            minutes = now.minute
+            minutes = now_aware.minute
             remainder = minutes % 5
             delta = (5 - remainder) if remainder else 5
-            due_date = now + datetime.timedelta(minutes=delta)
+            due_date = now_aware + datetime.timedelta(minutes=delta)
             return due_date
 
-        due_date_local = timezone.localtime(due_date)
-        if due_date_local <= now:
+        if timezone.is_naive(due_date):
+            if browser_tz:
+                try:
+                    tz = zoneinfo.ZoneInfo(browser_tz)
+                    due_date = timezone.make_aware(due_date, tz)
+                except (zoneinfo.ZoneInfoNotFoundError, TypeError):
+                    due_date = timezone.make_aware(due_date)
+            else:
+                due_date = timezone.make_aware(due_date)
+        else:
+            if browser_tz:
+                try:
+                    tz = zoneinfo.ZoneInfo(browser_tz)
+                    naive = due_date.replace(tzinfo=None)
+                    due_date = timezone.make_aware(naive, tz)
+                except (zoneinfo.ZoneInfoNotFoundError, TypeError):
+                    pass
+
+        if timezone.localtime(due_date) <= now_aware:
             raise forms.ValidationError('Дата выполнения не может быть в прошлом. Выбери актуальную дату.')
 
         return due_date
@@ -103,6 +126,7 @@ class ProfileForm(forms.ModelForm):
             'last_name': 'Фамилия',
             'email': 'Email',
             'gender': 'Пол',
+            'timezone': 'Часовой пояс',
             'room_count': 'Количество комнат',
             'cleaning_frequency': 'Частота уборки',
             'has_dishwasher': 'Посудомоечная машина',

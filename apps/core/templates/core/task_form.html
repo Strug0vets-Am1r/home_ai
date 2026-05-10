@@ -45,6 +45,7 @@
             {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
             <input type="hidden" id="selected-list" name="task_list" value="{% if task %}{{ task.task_list }}{% else %}active{% endif %}">
             <input type="hidden" id="is-favorite-input" name="is_favorite" value="{% if task and task.is_favorite %}on{% else %}off{% endif %}">
+            <input type="hidden" name="browser_timezone" id="browser-timezone" value="">
 
             <div class="field">
                 <label class="field__label" for="{{ form.title.id_for_label }}">Название задачи</label>
@@ -830,6 +831,8 @@
 
 <script>
     (function () {
+        document.getElementById('browser-timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
         document.querySelectorAll('input, textarea, select').forEach(function (el) {
             if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
                 el.classList.add('input');

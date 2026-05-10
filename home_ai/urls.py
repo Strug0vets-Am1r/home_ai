@@ -23,7 +23,6 @@ urlpatterns = [
     path('tasks/clear-completed/', views.clear_completed_tasks, name='clear_completed_tasks'),
     path('tasks/update-overdue/', views.update_overdue_tasks, name='update_overdue_tasks'),
 
-    path('task/create-with-ai/', views.task_create_with_ai, name='task_create_with_ai'),
     path('task/<int:task_id>/generate-subtasks/', views.generate_subtasks_view, name='generate_subtasks_view'),
     path('subtask/<int:subtask_id>/toggle/', views.toggle_subtask, name='toggle_subtask'),
 

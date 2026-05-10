@@ -280,7 +280,7 @@
       {
         "id": {{ task.id }},
         "title": "{{ task.title|escapejs }}",
-        "description": "{{ task.description|escapejs }}",
+        "description": "{{ task.description|default:''|escapejs }}",
         "due_date": "{{ task.due_date|date:'c' }}",
         "due_date_display": "{{ task.due_date|date:'d.m.Y H:i' }}",
         "is_completed": false,
@@ -305,7 +305,7 @@
       {
         "id": {{ task.id }},
         "title": "{{ task.title|escapejs }}",
-        "description": "{{ task.description|escapejs }}",
+        "description": "{{ task.description|default:''|escapejs }}",
         "due_date": "{{ task.due_date|date:'c' }}",
         "due_date_display": "{{ task.due_date|date:'d.m.Y H:i' }}",
         "is_completed": true,

@@ -1,0 +1,323 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Предложения{% endblock %}
+
+{% block topbar %}
+<div class="topbar">
+    <div>
+        <h1 class="topbar__title">Предложения</h1>
+    </div>
+    <div class="topbar__actions">
+        <button type="button" onclick="window.history.back()" class="topbar__close-btn" title="Закрыть">×</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+    .suggestions-page {
+        width: 100%;
+    }
+
+    .section-title {
+        margin: 0 0 16px;
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.01em;
+    }
+
+    .suggestions-group + .suggestions-group {
+        margin-top: 32px;
+    }
+
+    .suggestion-list {
+        display: grid;
+        gap: 12px;
+    }
+
+    .suggestion-card {
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        background: var(--surface);
+        padding: 16px 18px;
+        transition: all 200ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    .suggestion-card:hover {
+        transform: translateY(-1px);
+        border-color: var(--warning);
+    }
+
+    .suggestion-card__top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+
+    .suggestion-card__title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .suggestion-card__title {
+        margin: 0;
+        font-size: 1.02rem;
+        font-weight: 600;
+        color: var(--text);
+        line-height: 1.2;
+    }
+
+    .suggestion-card__date {
+        color: var(--text-secondary);
+        font-size: 0.92rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .suggestion-card__bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 12px;
+        border-top: 1.5px solid var(--border-color);
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .suggestion-card__badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        padding: 0 10px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .suggestion-card__badge--pending {
+        background: color-mix(in srgb, var(--warning) 14%, var(--surface));
+        color: var(--warning);
+        border-color: color-mix(in srgb, var(--warning) 24%, var(--border-color));
+    }
+
+    .suggestion-card__badge--accepted {
+        background: color-mix(in srgb, var(--success) 14%, var(--surface));
+        color: var(--success);
+        border-color: color-mix(in srgb, var(--success) 24%, var(--border-color));
+    }
+
+    .suggestion-card__badge--rejected {
+        background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+        color: var(--danger);
+        border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
+    }
+
+    .suggestion-card__actions {
+        display: flex;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .task-item__category {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .topbar__close-btn {
+        width: 40px;
+        height: 40px;
+        border: 1.5px solid;
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+        color: var(--danger);
+        border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
+        font-size: 1.4rem;
+        cursor: pointer;
+        transition: all var(--transition);
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .topbar__close-btn:hover {
+        background: color-mix(in srgb, var(--danger) 20%, var(--surface));
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 48px 20px;
+        border: 1.5px solid var(--border-color);
+        border-radius: 16px;
+        background: var(--surface);
+    }
+
+    .empty-state__icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 16px;
+        opacity: 0.35;
+        color: var(--text-secondary);
+    }
+
+    .empty-state__title {
+        margin: 0 0 8px;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text);
+    }
+
+    .empty-state__text {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+
+    @media (max-width: 640px) {
+        .suggestion-card__top {
+            flex-direction: column;
+        }
+        .suggestion-card__actions {
+            width: 100%;
+        }
+        .suggestion-card__actions .button {
+            flex: 1;
+        }
+    }
+</style>
+
+<div class="suggestions-page">
+    {% if suggestions %}
+        {% regroup suggestions by get_status_display as suggestion_groups %}
+        {% for group in suggestion_groups %}
+            <div class="suggestions-group">
+                <h2 class="section-title">{{ group.grouper }}</h2>
+                <div class="suggestion-list">
+                    {% for s in group.list %}
+                        <div class="suggestion-card" id="suggestion-{{ s.id }}">
+                            <div class="suggestion-card__top">
+                                <div class="suggestion-card__title-wrap">
+                                    <h3 class="suggestion-card__title">{{ s.title }}</h3>
+                                    {% if s.category %}
+                                        <span class="task-item__category" style="background-color: {{ s.category.color }}1a; color: {{ s.category.color }};">
+                                            <span style="width: 6px; height: 6px; border-radius: 999px; background-color: {{ s.category.color }}; display: inline-block;"></span>
+                                            {{ s.category.name }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <time class="suggestion-card__date">{{ s.suggested_date|date:'d.m.Y' }}</time>
+                            </div>
+                            <div class="suggestion-card__bottom">
+                                <span class="suggestion-card__badge suggestion-card__badge--{{ s.status }}">
+                                    {% if s.status == 'pending' %}
+                                        Каждые {{ s.interval_days }} дн.
+                                    {% else %}
+                                        {{ s.get_status_display }}
+                                    {% endif %}
+                                </span>
+                                {% if s.status == 'pending' %}
+                                    <div class="suggestion-card__actions">
+                                        <button type="button" class="button button--success button--small" onclick="handleSuggestion({{ s.id }}, 'accept')">Принять</button>
+                                        <button type="button" class="button button--danger button--small" onclick="handleSuggestion({{ s.id }}, 'reject')">Отклонить</button>
+                                    </div>
+                                {% else %}
+                                    <span>Нажми, чтобы открыть</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <svg class="empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"/></svg>
+            <h3 class="empty-state__title">Нет предложений</h3>
+            <p class="empty-state__text">AI пока не заметил повторяющихся задач. Завершай задачи регулярно — и предложения появятся здесь.</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    function handleSuggestion(suggestionId, action) {
+        const btn = event.target;
+        btn.disabled = true;
+        const oldText = btn.textContent;
+        btn.textContent = '...';
+
+        fetch('{% url "suggestions_api" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({
+                suggestion_id: suggestionId,
+                action: action
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                const card = document.getElementById('suggestion-' + suggestionId);
+                card.remove();
+                showToast(data.message, 'success');
+                // Обновляем бейджи
+                const remaining = document.querySelectorAll('.suggestion-card').length;
+                const topBadge = document.getElementById('topbar-suggestions-badge');
+                const sideBadge = document.getElementById('suggestions-badge-header');
+                if (topBadge) { topBadge.textContent = remaining; topBadge.style.display = remaining > 0 ? 'inline-flex' : 'none'; }
+                if (sideBadge) { sideBadge.textContent = remaining; sideBadge.style.display = remaining > 0 ? 'inline-flex' : 'none'; }
+                if (remaining === 0) {
+                    location.reload();
+                }
+            } else {
+                btn.disabled = false;
+                btn.textContent = oldText;
+                showToast(data.error || 'Ошибка', 'danger');
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.textContent = oldText;
+            showToast('Ошибка соединения', 'danger');
+        });
+    }
+
+    function showToast(message, type) {
+        const area = document.getElementById('toast-area');
+        if (!area) return;
+        const icons = {
+            success: '<path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>',
+            danger: '<path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/>',
+        };
+        const toast = document.createElement('div');
+        toast.className = `toast toast--${type}`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <svg class="toast__icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">${icons[type] || icons.success}</svg>
+            <span class="toast__body">${message}</span>
+            <button type="button" class="toast__close" aria-label="Закрыть">×</button>
+        `;
+        toast.querySelector('.toast__close').addEventListener('click', function () { window.dismissToast(toast); });
+        area.appendChild(toast);
+        setTimeout(function () { if (toast.isConnected) window.dismissToast(toast); }, 4200);
+    }
+</script>
+{% endblock %}

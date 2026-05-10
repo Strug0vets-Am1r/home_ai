@@ -169,17 +169,16 @@
         display: flex;
         flex-direction: column;
         min-width: 0;
-        border: 1px solid var(--border);
+        border: 1.5px solid var(--border-color);
         border-radius: var(--radius-lg);
-        background: linear-gradient(180deg, var(--surface), var(--surface));
-
+        background: var(--bg);
         overflow: hidden;
     }
 
     .cal-weekdays {
         display: grid;
         grid-template-columns: repeat(7, minmax(0, 1fr));
-        border-bottom: 1px solid var(--border);
+        border-bottom: 1.5px solid var(--border-color);
         background: var(--surface);
     }
 
@@ -208,24 +207,26 @@
     }
 
     .cal-cell {
-        border-right: 1px solid var(--border);
-        border-bottom: 1px solid var(--border);
+        border-right: 1.5px solid var(--border-color);
+        border-bottom: 1.5px solid var(--border-color);
         padding: 6px;
         min-height: 88px;
         cursor: pointer;
         transition: background var(--transition);
         overflow: hidden;
         position: relative;
+        background: var(--surface);
     }
 
     .cal-cell:nth-child(7n) { border-right: none; }
 
-    .cal-cell:hover { background: color-mix(in srgb, var(--primary) 4%, transparent); }
+    .cal-cell:hover { background: color-mix(in srgb, var(--primary) 4%, var(--surface)); }
 
-    .cal-cell.is-today { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+    .cal-cell.is-today { background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
 
-    .cal-cell.is-selected { background: color-mix(in srgb, var(--primary) 10%, transparent); }
+    .cal-cell.is-selected { background: color-mix(in srgb, var(--primary) 10%, var(--surface)); }
 
+    .cal-cell.is-other-month { background: var(--bg); }
     .cal-cell.is-other-month .cal-cell__num { opacity: 0.32; }
 
     .cal-cell__num {
@@ -264,7 +265,8 @@
         text-overflow: ellipsis;
         cursor: pointer;
         transition: opacity var(--transition);
-        color: #fff;
+        color: var(--text);
+        border: 1px solid transparent;
     }
 
     .cal-chip:hover { opacity: 0.82; }
@@ -280,7 +282,13 @@
     /* Week view cells */
     .cal-cell--week {
         min-height: 120px;
+        border-right: 1.5px solid var(--border-color);
+        border-bottom: 1.5px solid var(--border-color);
+        background: var(--surface);
     }
+    .cal-cell--week:nth-child(7n) { border-right: none; }
+    .cal-cell--week:hover { background: color-mix(in srgb, var(--primary) 4%, var(--surface)); }
+    .cal-cell--week.is-today { background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
 
     /* ── Sidebar ── */
     .cal-sidebar {
@@ -355,18 +363,18 @@
     }
 
     .cal-task-card {
-        border: 1px solid var(--border);
+        border: 1px solid var(--border-color);
         border-left-width: 4px;
         border-radius: var(--radius-sm);
-        padding: 10px 12px;
+        padding: 12px 14px;
         background: var(--surface);
         cursor: pointer;
-        transition: background var(--transition), transform var(--transition);
+        transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
         display: grid;
-        gap: 4px;
+        gap: 6px;
     }
 
-    .cal-task-card:hover { background: var(--surface); transform: translateX(2px); }
+    .cal-task-card:hover { background: var(--surface); transform: translateX(2px); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
     .cal-task-card--done { opacity: 0.5; }
 
     .cal-task-card__title {
@@ -374,9 +382,6 @@
         font-weight: 600;
         color: var(--text);
         margin: 0;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 
     .cal-task-card--done .cal-task-card__title { text-decoration: line-through; }
@@ -411,7 +416,7 @@
         flex-shrink: 0;
     }
 
-    /* ── Task modal ── */
+    /* ── Task modal (copy of home.html) ── */
     .modal-backdrop {
         position: fixed;
         inset: 0;
@@ -428,32 +433,28 @@
         transition: opacity 0.18s ease, visibility 0.18s ease;
         z-index: 200;
     }
-
     .modal-backdrop.is-open {
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
     }
-
     .modal-dialog {
         width: min(100%, 520px);
         border-radius: var(--radius-lg);
-
     }
-
     .modal-dialog--task {
-        width: min(100%, 560px);
+        width: min(100%, 760px);
         max-height: calc(100vh - 40px);
+        display: flex;
+        flex-direction: column;
     }
-
     .task-modal__body {
         overflow-y: auto;
         max-height: calc(100vh - 40px);
     }
-
     .task-modal__header {
         display: flex;
-        align-items: start;
+        align-items: flex-start;
         justify-content: space-between;
         gap: 16px;
         margin-bottom: 18px;
@@ -463,30 +464,120 @@
         padding-bottom: 8px;
         z-index: 2;
     }
-
-    .task-modal__header-main { display: grid; gap: 8px; }
-    .task-modal__title { margin: 0; }
-    .task-modal__time { margin: 0; color: var(--text-secondary); font-size: 0.9rem; font-weight: 600; }
-
-    .task-modal__content { display: grid; gap: 16px; }
-    .task-modal__block { display: grid; gap: 8px; }
-    .task-modal__label { color: var(--text-secondary); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-
-    .task-modal__actions { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
-
+    .task-modal__header-main {
+        flex: 1;
+    }
+    .task-modal__title {
+        margin: 8px 0 4px;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1.3;
+    }
+    .task-modal__time {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
     .modal-close-button {
-        width: 38px; height: 38px;
-        border: 1px solid var(--border);
+        width: 38px;
+        height: 38px;
+        border: 1px solid var(--border-color);
         border-radius: 999px;
         background: var(--surface);
         color: var(--text-secondary);
-        font: inherit; font-size: 1.25rem; line-height: 1;
+        font: inherit;
+        font-size: 1.25rem;
+        line-height: 1;
         cursor: pointer;
-        transition: background 0.18s ease, color 0.18s ease;
+        transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
         flex: 0 0 auto;
     }
-
-    .modal-close-button:hover { background: var(--surface); color: var(--text); }
+    .modal-close-button:hover {
+        background: var(--surface);
+        color: var(--text);
+    }
+    .task-modal__content {
+        padding: 20px 20px;
+    }
+    .task-modal__block {
+        margin-bottom: 20px;
+    }
+    .task-modal__label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        display: block;
+    }
+    .task-modal__description {
+        color: var(--text);
+        line-height: 1.6;
+        font-size: 0.95rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .subtasks {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .subtask {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px;
+        border-radius: 8px;
+        background: var(--surface);
+        font-size: 0.9rem;
+    }
+    .subtask--checkable {
+        cursor: pointer;
+        transition: all var(--transition);
+    }
+    .subtask--checkable:hover {
+        background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+    }
+    .subtask.is-completed {
+        opacity: 0.65;
+    }
+    .subtask__left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 0;
+    }
+    .subtask__text {
+        flex: 1;
+        min-width: 0;
+        word-break: break-word;
+    }
+    .subtask.is-completed .subtask__text {
+        text-decoration: line-through;
+    }
+    .subtask input[type="checkbox"] {
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    .task-modal__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 16px 20px;
+        border-top: 1.5px solid var(--border-color);
+    }
+    @media (max-width: 640px) {
+        .modal-dialog, .modal-dialog--task {
+            width: 100%;
+            max-height: calc(100vh - 24px);
+        }
+        .task-modal__actions .button {
+            width: 100%;
+        }
+    }
 
     /* ── Week time gutter ── */
     :root { --gutter-w: 48px; }
@@ -591,8 +682,16 @@
     }
 
     function chipColor(task) {
-        if (task.is_completed) return '#9aa7bc';
-        return task.category_color || 'var(--primary)';
+        if (task.is_completed) return 'color-mix(in srgb, #9aa7bc 14%, var(--surface))';
+        const listColors = { active: 'var(--success)', planned: 'var(--primary)', urgent: '#d946ef', favorites: 'var(--warning)' };
+        const c = listColors[task.task_list] || task.category_color || 'var(--primary)';
+        return `color-mix(in srgb, ${c} 14%, var(--surface))`;
+    }
+    function chipBorderColor(task) {
+        if (task.is_completed) return 'color-mix(in srgb, #9aa7bc 24%, var(--border-color))';
+        const listColors = { active: 'var(--success)', planned: 'var(--primary)', urgent: '#d946ef', favorites: 'var(--warning)' };
+        const c = listColors[task.task_list] || task.category_color || 'var(--primary)';
+        return `color-mix(in srgb, ${c} 24%, var(--border-color))`;
     }
 
     function pad(n) { return String(n).padStart(2,'0'); }
@@ -659,6 +758,7 @@
                 chip.className = 'cal-chip' + (t.is_completed ? ' cal-chip--done' : '');
                 chip.textContent = t.time + ' ' + t.title;
                 chip.style.background = chipColor(t);
+                chip.style.borderColor = chipBorderColor(t);
                 chip.dataset.taskId = t.id;
                 chip.addEventListener('click', e => { e.stopPropagation(); openTaskModal(t); });
                 eventsEl.appendChild(chip);
@@ -740,6 +840,7 @@
                     chip.className = 'cal-chip' + (t.is_completed ? ' cal-chip--done' : '');
                     chip.innerHTML = `<span style="opacity:.7;font-size:.9em;margin-right:3px;">${t.time}</span>${escHtml(t.title)}`;
                     chip.style.background = chipColor(t);
+                    chip.style.borderColor = chipBorderColor(t);
                     chip.addEventListener('click', e => { e.stopPropagation(); openTaskModal(t); });
                     eventsEl.appendChild(chip);
                 });
@@ -773,18 +874,28 @@
         sorted.forEach(t => {
             const card = document.createElement('div');
             card.className = 'cal-task-card' + (t.is_completed ? ' cal-task-card--done' : '');
-            const color = t.category_color || 'var(--primary)';
-            card.style.borderLeftColor = color;
+
+            const listBorderColors = { active: 'var(--success)', planned: 'var(--primary)', urgent: '#d946ef', favorites: 'var(--warning)' };
+            const listColor = listBorderColors[t.task_list] || 'var(--primary)';
+            const catColor = t.category_color || 'var(--primary)';
+            card.style.borderLeftColor = t.category_name ? catColor : listColor;
 
             let catHtml = '';
             if (t.category_name) {
-                catHtml = `<span class="cal-cat-badge" style="background:${color}1a;color:${color};">
-                    <span class="cal-cat-dot" style="background:${color};"></span>${t.category_name}
+                catHtml = `<span class="cal-cat-badge" style="background:${catColor}1a;color:${catColor};">
+                    <span class="cal-cat-dot" style="background:${catColor};"></span>${t.category_name}
                 </span>`;
             }
 
+            const subtaskBadge = !t.is_completed && t.pending_subtasks > 0
+                ? `<span class="badge badge--muted" style="font-size:0.72rem;padding:1px 6px;">Подзадач: ${t.pending_subtasks}</span>`
+                : '';
+
             card.innerHTML = `
-                <p class="cal-task-card__title">${escHtml(t.title)}</p>
+                <p class="cal-task-card__title" style="display:flex;align-items:center;gap:8px;">
+                    <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.title)}</span>
+                    ${subtaskBadge}
+                </p>
                 <div class="cal-task-card__meta">
                     <span class="cal-task-card__time">${t.time}</span>
                     ${catHtml}
@@ -799,65 +910,270 @@
 
     // ── Task modal ──
     function openTaskModal(task) {
-        const color = task.category_color || 'var(--primary)';
+        const taskTypeLabel = task.is_completed
+            ? 'Выполненная задача'
+            : 'Активная задача';
 
-        let catHtml = '';
-        if (task.category_name) {
-            catHtml = `<span class="badge task-category-badge" style="background:${color}1a;color:${color};border-color:${color}40;display:inline-flex;align-items:center;gap:5px;">
-                <span style="width:8px;height:8px;border-radius:999px;background:${color};flex-shrink:0;"></span>
-                ${escHtml(task.category_name)}
-            </span>`;
-        }
+        function renderModalBody(subtasks) {
+            const hasSubtasks = subtasks && subtasks.length > 0;
 
-        const statusBadge = task.is_completed
-            ? '<span class="badge badge--success">Выполнено</span>'
-            : '<span class="badge badge--muted">Активная задача</span>';
+            const subtasksContent = hasSubtasks
+                ? `<div class="subtasks">
+                    ${subtasks.map(subtask => `
+                        <div class="subtask subtask--checkable ${subtask.is_completed ? 'is-completed' : ''}" data-subtask-row data-subtask-id="${subtask.id}" data-parent-task-id="${task.id}">
+                            <div class="subtask__left">
+                                <input type="checkbox" class="subtask-checkbox" data-subtask-id="${subtask.id}" data-parent-task-id="${task.id}" ${subtask.is_completed ? 'checked' : ''}>
+                                <span class="subtask__text" data-subtask-text>${subtask.title}</span>
+                            </div>
+                            <span class="badge ${subtask.is_completed ? 'badge--success' : 'badge--muted'}" data-subtask-badge>
+                                ${subtask.is_completed ? 'Выполнено' : 'Не выполнено'}
+                            </span>
+                        </div>
+                    `).join('')}
+                  </div>`
+                : '<p class="muted" style="margin: 0;">У этой задачи пока нет подзадач.</p>';
 
-        const subtasksBadge = !task.is_completed && task.pending_subtasks > 0
-            ? `<span class="badge badge--muted">Подзадач: ${task.pending_subtasks}</span>` : '';
+            const descriptionContent = task.description
+                ? `<p class="task-modal__description" style="margin: 0;">${escHtml(task.description)}</p>`
+                : '';
 
-        let descHtml = '';
-        if (task.description) {
-            descHtml = `<div class="task-modal__block">
-                <div class="task-modal__label">Описание</div>
-                <p style="margin:0;white-space:pre-wrap;word-break:break-word;font-size:0.94rem;">${escHtml(task.description)}</p>
-            </div>`;
-        }
+            const completeButton = task.is_completed
+                ? `<button type="button" class="button button--success button--small js-complete-task-modal" data-task-id="${task.id}">Восстановить</button>`
+                : `<button type="button" class="button button--success button--small js-complete-task-modal" data-task-id="${task.id}">Завершить задачу</button>`;
 
-        let actionsHtml = task.is_completed
-            ? `<a href="/task/${task.id}/delete/" class="button button--danger button--small">Удалить</a>`
-            : `<a href="${task.complete_url}" class="button button--success button--small">Завершить</a>
-               <a href="${task.edit_url}" class="button button--primary button--small">Редактировать</a>
-               <a href="${task.delete_url}" class="button button--danger button--small">Удалить</a>`;
-
-        taskModalBody.innerHTML = `
-            <div class="task-modal__header">
-                <div class="task-modal__header-main">
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                        ${statusBadge} ${catHtml} ${subtasksBadge}
+            taskModalBody.innerHTML = `
+                <div class="task-modal__header">
+                    <div class="task-modal__header-main">
+                        <div class="badge badge--muted" style="width: fit-content;">
+                            ${taskTypeLabel}
+                        </div>
+                        <h3 class="task-modal__title">${escHtml(task.title)}</h3>
+                        <p class="task-modal__time">${task.date.split('-').reverse().join('.')} в ${task.time}</p>
                     </div>
-                    <h3 class="task-modal__title">${escHtml(task.title)}</h3>
-                    <p class="task-modal__time">${task.date.split('-').reverse().join('.')} в ${task.time}</p>
+                    <button type="button" class="modal-close-button" id="task-modal-close" aria-label="Закрыть окно">×</button>
                 </div>
-                <button type="button" class="modal-close-button" id="task-modal-close" aria-label="Закрыть">×</button>
-            </div>
-            <div class="task-modal__content">
-                ${descHtml}
-                <div class="task-modal__actions">${actionsHtml}</div>
-            </div>
-        `;
+                <div class="task-modal__content">
+                    <div class="task-modal__block">
+                        <div class="task-modal__label">Описание</div>
+                        ${descriptionContent || '<p class="muted" style="margin: 0;">Нет описания</p>'}
+                    </div>
+                    <div class="task-modal__block">
+                        <div class="task-modal__label">Подзадачи</div>
+                        ${subtasksContent}
+                    </div>
+                </div>
+                <div class="task-modal__actions">
+                    ${completeButton}
+                    <a href="${task.edit_url}" class="button button--primary button--small">Редактировать</a>
+                    <button type="button" class="button button--primary button--small js-generate-subtasks" data-task-id="${task.id}" data-task-title="${escHtml(task.title)}">Сгенерировать подзадачи</button>
+                    <button type="button" class="button button--danger button--small js-delete-task-modal" data-task-id="${task.id}">Удалить</button>
+                </div>
+            `;
 
-        taskModal.classList.add('is-open');
-        taskModal.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
+            attachEventHandlers();
 
-        document.getElementById('task-modal-close').addEventListener('click', closeTaskModal);
+            const modalContent = taskModalBody.querySelector('.task-modal__content');
+            if (modalContent) {
+                const subtasksBlock = modalContent.querySelectorAll('.task-modal__block');
+                if (subtasksBlock.length > 0) {
+                    attachSubtaskCheckboxListeners(subtasksBlock[subtasksBlock.length - 1]);
+                }
+            }
+        }
+
+        function attachSubtaskCheckboxListeners(container) {
+            container.querySelectorAll('.subtask-checkbox').forEach(function (checkbox) {
+                checkbox.addEventListener('click', function (event) {
+                    event.stopPropagation();
+                });
+                checkbox.addEventListener('change', function () {
+                    const subtaskId = this.dataset.subtaskId;
+                    const isChecked = this.checked;
+                    fetch(`/subtask/${subtaskId}/toggle/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            const row = document.querySelector(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
+                            if (row) {
+                                row.classList.toggle('is-completed', data.is_completed);
+                                const badge = row.querySelector('[data-subtask-badge]');
+                                if (badge) {
+                                    badge.className = data.is_completed ? 'badge badge--success' : 'badge badge--muted';
+                                    badge.textContent = data.is_completed ? 'Выполнено' : 'Не выполнено';
+                                }
+                                const text = row.querySelector('[data-subtask-text]');
+                                if (text) {
+                                    text.style.textDecoration = data.is_completed ? 'line-through' : 'none';
+                                    text.style.opacity = data.is_completed ? '0.72' : '1';
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+        }
+
+        function attachEventHandlers() {
+            const closeBtn = document.getElementById('task-modal-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeTaskModal);
+            }
+
+            const generateBtn = taskModalBody.querySelector('.js-generate-subtasks');
+            if (generateBtn) {
+                generateBtn.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const taskId = this.dataset.taskId;
+                    const taskTitle = this.dataset.taskTitle;
+                    const oldText = this.textContent;
+                    this.disabled = true;
+                    this.textContent = 'Генерация...';
+
+                    fetch('/api/generate-subtasks/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ task_id: taskId, task_title: taskTitle })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            showToast('Подзадачи успешно сгенерированы!', 'success');
+                            return fetch(`/api/tasks/${taskId}/subtasks/`);
+                        } else {
+                            throw new Error(data.message || 'Ошибка генерации подзадач.');
+                        }
+                    })
+                    .then(r => r.json())
+                    .then(subtasksData => {
+                        const subtasks = subtasksData.subtasks || [];
+                        const subtasksBlock = taskModalBody.querySelectorAll('.task-modal__block');
+                        if (subtasksBlock.length > 0) {
+                            const block = subtasksBlock[subtasksBlock.length - 1];
+                            const subtasksContent = subtasks.length > 0
+                                ? `<div class="subtasks">
+                                    ${subtasks.map(s => `
+                                        <div class="subtask subtask--checkable ${s.is_completed ? 'is-completed' : ''}" data-subtask-row data-subtask-id="${s.id}" data-parent-task-id="${taskId}">
+                                            <div class="subtask__left">
+                                                <input type="checkbox" class="subtask-checkbox" data-subtask-id="${s.id}" data-parent-task-id="${taskId}" ${s.is_completed ? 'checked' : ''}>
+                                                <span class="subtask__text" data-subtask-text>${s.title}</span>
+                                            </div>
+                                            <span class="badge ${s.is_completed ? 'badge--success' : 'badge--muted'}" data-subtask-badge>
+                                                ${s.is_completed ? 'Выполнено' : 'Не выполнено'}
+                                            </span>
+                                        </div>
+                                    `).join('')}
+                                  </div>`
+                                : '<p class="muted" style="margin: 0;">У этой задачи пока нет подзадач.</p>';
+                            block.innerHTML = `<div class="task-modal__label">Подзадачи</div>${subtasksContent}`;
+                            attachSubtaskCheckboxListeners(block);
+                        }
+                    })
+                    .catch(error => {
+                        showToast(error.message || 'Произошла ошибка.', 'danger');
+                    })
+                    .finally(() => {
+                        this.disabled = false;
+                        this.textContent = oldText;
+                    });
+                });
+            }
+
+            const completeBtn = taskModalBody.querySelector('.js-complete-task-modal');
+            if (completeBtn) {
+                completeBtn.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const taskId = this.dataset.taskId;
+                    const wasCompleted = task.is_completed;
+                    closeTaskModal();
+                    showToast('Задача ' + (wasCompleted ? 'восстанавливается' : 'завершается') + '...', 'success');
+                    const endpoint = wasCompleted ? 'restore' : 'complete';
+                    setTimeout(() => { window.location.href = `/task/${taskId}/${endpoint}/`; }, 100);
+                });
+            }
+
+            const deleteBtn = taskModalBody.querySelector('.js-delete-task-modal');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    showConfirmModal(
+                        'Удаление задачи',
+                        'Вы уверены, что хотите удалить задачу «' + escHtml(task.title) + '»? Это действие необратимо.',
+                        function () {
+                            fetch('/task/' + task.id + '/delete/', {
+                                method: 'POST',
+                                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                            })
+                            .then(() => {
+                                closeTaskModal();
+                                allTasks = allTasks.filter(t => t.id !== task.id);
+                                render();
+                                showToast('Задача «' + escHtml(task.title) + '» удалена!', 'success');
+                            })
+                            .catch(() => showToast('Ошибка при удалении задачи.', 'danger'));
+                        }
+                    );
+                });
+            }
+        }
+
+        // Fetch subtasks and render
+        fetch(`/api/tasks/${task.id}/subtasks/`)
+            .then(r => r.json())
+            .then(data => {
+                const subtasks = data.subtasks || [];
+                renderModalBody(subtasks);
+                taskModal.classList.add('is-open');
+                taskModal.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
+            })
+            .catch(() => {
+                renderModalBody([]);
+                taskModal.classList.add('is-open');
+                taskModal.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
+            });
     }
 
     function closeTaskModal() {
         taskModal.classList.remove('is-open');
         taskModal.setAttribute('aria-hidden', 'true');
         document.body.style.overflow = '';
+    }
+
+    function getCookie(name) {
+        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        return match ? decodeURIComponent(match[2]) : null;
+    }
+
+    function showToast(message, type) {
+        const area = document.getElementById('toast-area');
+        if (!area) return;
+        const toast = document.createElement('div');
+        toast.className = 'toast toast--' + type;
+        toast.innerHTML = '<svg class="toast__icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/></svg><span class="toast__body">' + message + '</span><button type="button" class="toast__close" aria-label="Закрыть">\u00d7</button>';
+        area.appendChild(toast);
+        setTimeout(function () { if (toast.isConnected) { toast.classList.add('is-hiding'); toast.addEventListener('animationend', function () { toast.remove(); }, { once: true }); } }, 4200);
+    }
+
+    function showConfirmModal(title, text, onConfirm) {
+        const backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop confirm-modal';
+        backdrop.setAttribute('aria-hidden', 'false');
+        backdrop.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);';
+        backdrop.innerHTML = '<div class="panel" style="max-width:420px;width:90vw;"><div class="panel__body"><h3 style="margin:0 0 8px;font-size:18px;">' + title + '</h3><p style="margin:0 0 20px;color:var(--text-secondary);font-size:14px;">' + text + '</p><div style="display:flex;gap:10px;justify-content:flex-end;"><button class="button button--secondary" id="confirm-cancel">Отмена</button><button class="button button--danger" id="confirm-ok">Удалить</button></div></div></div>';
+        document.body.appendChild(backdrop);
+        document.getElementById('confirm-cancel').addEventListener('click', function () { backdrop.remove(); });
+        document.getElementById('confirm-ok').addEventListener('click', function () { backdrop.remove(); onConfirm(); });
+        backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
     }
 
     taskModal.addEventListener('click', e => { if (e.target === taskModal) closeTaskModal(); });

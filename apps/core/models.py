@@ -107,6 +107,7 @@ class TaskHistory(models.Model):
         related_name='task_history'
     )
     task_title = models.CharField(max_length=255)
+    task_list = models.CharField(max_length=20, blank=True, default='')
     completed_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

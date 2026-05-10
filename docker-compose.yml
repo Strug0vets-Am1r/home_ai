@@ -143,6 +143,25 @@ services:
     networks:
       - homeai-network
 
+  # ── Suggestion Service (FastAPI) ──
+  suggestion-service:
+    build:
+      context: ./suggestion_service
+      dockerfile: Dockerfile
+    container_name: homeai-suggestion-service
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      DJANGO_API_URL: http://task-service:8000
+    ports:
+      - "8004:8004"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - homeai-network
+
   # ── Notification Service (FastAPI) ──
   notification-service:
     build:

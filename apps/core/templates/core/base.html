@@ -309,6 +309,57 @@
             white-space: nowrap;
         }
 
+        /* ── Topbar Container (позволяет центрировать кнопку) ── */
+        .topbar-container {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .topbar__center-btn {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            height: 40px;
+            padding: 0 18px;
+            border-radius: 10px;
+            border: 1.5px solid color-mix(in srgb, var(--warning) 30%, var(--border-color));
+            background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+            color: var(--warning);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            font-family: var(--font-body);
+            transition: all var(--transition);
+        }
+
+        .topbar__center-btn:hover {
+            background: color-mix(in srgb, var(--warning) 18%, var(--surface));
+            text-decoration: none;
+            transform: translate(-50%, -50%) translateY(-1px);
+        }
+
+        .topbar__center-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 999px;
+            background: var(--warning);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
         /* ── Main Area ── */
         .main-area {
             flex: 1;
@@ -787,7 +838,6 @@
                         </svg>
                     </span>
                     <span style="font-size: 15px;">HomeAI</span>
-                    <span class="sidebar__badge" id="suggestions-badge-header" style="display: none; margin-left: 6px; background: var(--warning); color: white;">0</span>
                 </div>
                 <button id="theme-toggle-btn" style="width: 32px; height: 32px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all var(--transition); font-family: inherit;" title="Переключить тему">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
@@ -820,7 +870,7 @@
                                 </a>
                             </li>
                             <li class="sidebar__item">
-                                <a href="#" class="sidebar__link" title="Функция будет добавлена">
+                                <a href="{% url 'tracker' %}" class="sidebar__link {% if request.resolver_match.url_name == 'tracker' %}is-active{% endif %}">
                                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
                                     Трекер задач
                                 </a>
@@ -859,15 +909,6 @@
                         </div>
                     </div>
 
-                    <!-- Предложения (повторяющиеся задачи) -->
-                    <div class="sidebar__section" id="suggestions-section" style="display: none;">
-                        <div class="sidebar__section-title" style="color: var(--warning);">
-                            Предложения
-                            <span class="sidebar__badge" id="suggestions-badge" style="display: none;">0</span>
-                        </div>
-                        <div id="suggestions-list"></div>
-                    </div>
-
                     <!-- Theme Switcher (at bottom) -->
                     <div class="sidebar__section" style="margin-top: auto; margin-bottom: 0; display: none;">
                         <label class="sidebar__section-title" for="themeSelect">Тема</label>
@@ -901,7 +942,17 @@
 
         <!-- ── Main Area ── -->
         <div class="main-area">
-            {% block topbar %}{% endblock %}
+            <div class="topbar-container">
+                {% if user.is_authenticated %}
+                {% if request.resolver_match.url_name == 'home' or request.resolver_match.url_name == 'calendar' or request.resolver_match.url_name == 'tracker' %}
+                <a href="{% url 'suggestions' %}" class="topbar__center-btn">
+                    Предложения
+                    <span class="topbar__center-badge" id="topbar-suggestions-badge">0</span>
+                </a>
+                {% endif %}
+                {% endif %}
+                {% block topbar %}{% endblock %}
+            </div>
 
             <div id="content" class="content">
                 <div id="toast-area" class="toast-area" aria-live="polite" aria-atomic="false">
@@ -1046,119 +1097,7 @@
             }
         });
 
-        // Suggestions logic
-        (function () {
-            function updateSuggestionsBadge(count) {
-                const badge = document.getElementById('suggestions-badge-header');
-                const section = document.getElementById('suggestions-section');
-                const list = document.getElementById('suggestions-list');
-                if (!badge || !section || !list) return;
 
-                if (count > 0) {
-                    badge.textContent = count;
-                    badge.style.display = 'inline-flex';
-                    section.style.display = 'block';
-
-                    // Fetch and render suggestions
-                    fetch('{% url "suggestions_api" %}')
-                        .then(r => r.json())
-                        .then(data => {
-                            if (data.suggestions && data.suggestions.length > 0) {
-                                list.innerHTML = data.suggestions.map(s => `
-                                    <div class="suggestion-item" style="padding: 10px 12px; border-bottom: 1px solid var(--border-color); font-size: 0.88rem;">
-                                        <div style="margin-bottom: 6px; font-weight: 600;">${s.title}</div>
-                                        <div style="color: var(--text-secondary); margin-bottom: 8px;">Каждые ${s.interval_days} дн.</div>
-                                        <div style="display: flex; gap: 6px;">
-                                            <button onclick="handleSuggestion(${s.id}, 'accept')" class="button button--success button--small">Принять</button>
-                                            <button onclick="handleSuggestion(${s.id}, 'reject')" class="button button--danger button--small">Отклонить</button>
-                                        </div>
-                                    </div>
-                                `).join('');
-                            } else {
-                                list.innerHTML = '<div style="padding: 10px 12px; font-size: 0.88rem; color: var(--text-secondary);">Нет новых предложений</div>';
-                            }
-                        });
-                } else {
-                    badge.style.display = 'none';
-                    section.style.display = 'none';
-                }
-            }
-
-            // Initial load
-            fetch('{% url "suggestions_api" %}')
-                .then(r => r.json())
-                .then(data => {
-                    if (data.suggestions) {
-                        updateSuggestionsBadge(data.suggestions.length);
-                    }
-                })
-                .catch(() => {});
-
-            // Refresh every 60 seconds
-            setInterval(() => {
-                fetch('{% url "suggestions_api" %}')
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.suggestions) {
-                            updateSuggestionsBadge(data.suggestions.length);
-                        }
-                    })
-                    .catch(() => {});
-            }, 60000);
-        })();
-
-        window.handleSuggestion = function(suggestionId, action) {
-            fetch('{% url "suggestions_api" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}',
-                },
-                body: JSON.stringify({
-                    suggestion_id: suggestionId,
-                    action: action
-                })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.ok) {
-                    // Refresh suggestions
-                    fetch('{% url "suggestions_api" %}')
-                        .then(r => r.json())
-                        .then(d => {
-                            const badge = document.getElementById('suggestions-badge-header');
-                            if (badge && d.suggestions) {
-                                badge.textContent = d.suggestions.length;
-                                if (d.suggestions.length === 0) {
-                                    badge.style.display = 'none';
-                                    document.getElementById('suggestions-section').style.display = 'none';
-                                }
-                            }
-                        });
-                    // Show toast notification
-                    const toastArea = document.getElementById('toast-area');
-                    if (toastArea) {
-                        const toast = document.createElement('div');
-                        toast.className = 'toast toast--success';
-                        toast.innerHTML = `
-                            <svg class="toast__icon" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>
-                            </svg>
-                            <span class="toast__body">${data.message}</span>
-                            <button type="button" class="toast__close" aria-label="Закрыть">×</button>
-                        `;
-                        toastArea.appendChild(toast);
-                        setTimeout(() => {
-                            if (toast.isConnected) {
-                                toast.classList.add('is-hiding');
-                                toast.addEventListener('animationend', () => toast.remove(), { once: true });
-                            }
-                        }, 4200);
-                    }
-                }
-            })
-            .catch(() => {});
-        };
     </script>
 </body>
 </html>

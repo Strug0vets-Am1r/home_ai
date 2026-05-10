@@ -1,70 +1,201 @@
 {% extends 'core/base.html' %}
+{% load static %}
 
-{% block title %}Опрос{% endblock %}
+{% block title %}Допрос{% endblock %}
+
+{% block topbar %}
+<div class="topbar">
+    <div style="display: flex; align-items: center; gap: 16px; position: relative;">
+        <h1 class="topbar__title" id="topbar-title">Допрос</h1>
+    </div>
+    <div class="topbar__actions"></div>
+</div>
+{% endblock %}
 
 {% block content %}
-<div class="hero">
-    <div>
-        <div class="eyebrow">Настройка профиля</div>
-        <h1 class="hero__title">Расскажите о себе</h1>
-    </div>
-    <p class="hero__meta">
-        Это поможет нам создать более подходящие задачи под ваш дом и привычки.
-    </p>
-</div>
+<style>
+    .survey-page {
+        max-width: 640px;
+        margin: 0 auto;
+    }
+    .survey-page .panel {
+        max-width: 100%;
+    }
+    .survey__intro {
+        margin-bottom: 28px;
+    }
+    .survey__intro h2 {
+        margin: 0 0 8px;
+        font-size: 20px;
+        font-weight: 700;
+    }
+    .survey__intro p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    .survey__section {
+        margin-bottom: 28px;
+        padding-bottom: 24px;
+        border-bottom: 1.5px solid var(--border-color);
+    }
+    .survey__section:last-of-type {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    .survey__section-title {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin: 0 0 16px;
+    }
+    .checklist {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .check {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        border: 1.5px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: var(--surface);
+        cursor: pointer;
+        transition: all var(--transition);
+        font-size: 14px;
+        font-weight: 500;
+        user-select: none;
+    }
+    .check:hover {
+        border-color: var(--primary);
+    }
+    .check input[type="checkbox"],
+    .check input[type="radio"] {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--primary);
+        flex-shrink: 0;
+        margin: 0;
+    }
+    .survey__field {
+        margin-bottom: 16px;
+    }
+    .survey__field:last-child {
+        margin-bottom: 0;
+    }
+    .survey__field .field__label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+    }
+    .survey__field .input {
+        width: 100%;
+    }
+    .survey__radio-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .survey__radio-group .check {
+        flex: 1;
+        min-width: 140px;
+        justify-content: center;
+    }
+    .survey__radio-group .check input[type="radio"] {
+        display: none;
+    }
+    .survey__radio-group .check:has(input[type="radio"]:checked) {
+        border-color: var(--primary);
+        background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+    }
+    .survey__submit {
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 24px;
+        margin-top: 8px;
+        border-top: 1.5px solid var(--border-color);
+    }
+    .survey__submit .button {
+        min-width: 200px;
+        height: 44px;
+    }
+</style>
 
-<div class="panel" style="max-width: 760px;">
-    <div class="panel__body">
-        <form method="post" class="form-grid">
-            {% csrf_token %}
-
-            <div class="checklist">
-                <label class="check" for="has_dishwasher">
-                    <input type="checkbox" id="has_dishwasher" name="has_dishwasher">
-                    <span>У меня есть посудомойка</span>
-                </label>
-
-                <label class="check" for="has_robot_vacuum">
-                    <input type="checkbox" id="has_robot_vacuum" name="has_robot_vacuum">
-                    <span>У меня есть робот-пылесос</span>
-                </label>
-
-                <label class="check" for="has_plants">
-                    <input type="checkbox" id="has_plants" name="has_plants">
-                    <span>У меня есть комнатные растения</span>
-                </label>
-
-                <label class="check" for="has_pets">
-                    <input type="checkbox" id="has_pets" name="has_pets">
-                    <span>У меня есть домашние животные</span>
-                </label>
+<div class="survey-page">
+    <div class="panel">
+        <div class="panel__body">
+            <div class="survey__intro">
+                <h2>Расскажите о своём доме</h2>
             </div>
 
-            <div class="field">
-                <label class="field__label" for="room_count">Количество комнат</label>
-                <input type="number" class="input" id="room_count" name="room_count" min="1" max="10">
-            </div>
+            <form method="post">
+                {% csrf_token %}
 
-            <div class="field">
-                <div class="field__label">Как часто вы предпочитаете убираться?</div>
-                <div class="checklist">
-                    <label class="check">
-                        <input type="radio" name="cleaning_frequency" value="daily">
-                        <span>Ежедневно</span>
-                    </label>
-                    <label class="check">
-                        <input type="radio" name="cleaning_frequency" value="weekly">
-                        <span>Раз в неделю</span>
-                    </label>
-                    <label class="check">
-                        <input type="radio" name="cleaning_frequency" value="monthly">
-                        <span>Раз в месяц</span>
-                    </label>
+                <div class="survey__section">
+                    <div class="survey__section-title">Техника</div>
+                    <div class="checklist">
+                        <label class="check" for="has_dishwasher">
+                            <input type="checkbox" id="has_dishwasher" name="has_dishwasher">
+                            <span>У меня есть посудомойка</span>
+                        </label>
+                        <label class="check" for="has_robot_vacuum">
+                            <input type="checkbox" id="has_robot_vacuum" name="has_robot_vacuum">
+                            <span>У меня есть робот-пылесос</span>
+                        </label>
+                    </div>
                 </div>
-            </div>
 
-            <button type="submit" class="button button--primary">Завершить настройку</button>
-        </form>
+                <div class="survey__section">
+                    <div class="survey__section-title">Дом</div>
+                    <div class="checklist">
+                        <label class="check" for="has_plants">
+                            <input type="checkbox" id="has_plants" name="has_plants">
+                            <span>У меня есть комнатные растения</span>
+                        </label>
+                        <label class="check" for="has_pets">
+                            <input type="checkbox" id="has_pets" name="has_pets">
+                            <span>У меня есть домашние животные</span>
+                        </label>
+                    </div>
+                    <div class="survey__field" style="margin-top: 16px;">
+                        <label class="field__label" for="room_count">Количество комнат</label>
+                        <input type="number" class="input" id="room_count" name="room_count" min="1" max="10" placeholder="Например: 2">
+                    </div>
+                </div>
+
+                <div class="survey__section">
+                    <div class="survey__section-title">Уборка</div>
+                    <div class="survey__field">
+                        <div class="field__label">Как часто вы предпочитаете убираться?</div>
+                        <div class="survey__radio-group">
+                            <label class="check">
+                                <input type="radio" name="cleaning_frequency" value="daily">
+                                <span>Ежедневно</span>
+                            </label>
+                            <label class="check">
+                                <input type="radio" name="cleaning_frequency" value="weekly" checked>
+                                <span>Раз в неделю</span>
+                            </label>
+                            <label class="check">
+                                <input type="radio" name="cleaning_frequency" value="monthly">
+                                <span>Раз в месяц</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="survey__submit">
+                    <button type="submit" class="button button--primary">Завершить настройку</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

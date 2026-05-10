@@ -27,6 +27,9 @@ urlpatterns = [
     path('task/<int:task_id>/generate-subtasks/', views.generate_subtasks_view, name='generate_subtasks_view'),
     path('subtask/<int:subtask_id>/toggle/', views.toggle_subtask, name='toggle_subtask'),
 
+    path('suggestions/', views.suggestions_page, name='suggestions'),
+    path('tracker/', views.tracker, name='tracker'),
+
     path('categories/', views.categories, name='categories'),
     path('categories/<int:category_id>/delete/', views.category_delete, name='category_delete'),
 
@@ -35,4 +38,5 @@ urlpatterns = [
     path('api/tasks/<int:task_id>/subtasks/', views.api_task_subtasks, name='api_task_subtasks'),
     path('api/generate-subtasks/', views.api_generate_subtasks, name='api_generate_subtasks'),
     path('api/suggestions/', views.suggestions_api, name='suggestions_api'),
+    path('api/suggestions/create/', views.api_create_suggestion, name='api_create_suggestion'),
 ]

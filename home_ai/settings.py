@@ -118,13 +118,6 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 
-CELERY_BEAT_SCHEDULE = {
-    'analyze-recurring-patterns': {
-        'task': 'apps.core.tasks.analyze_recurring_patterns',
-        'schedule': 86400.0,  # Раз в день (в секундах)
-    },
-}
-
 # Redis конфиг (используется Celery и Event система)
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))

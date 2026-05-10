@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
@@ -14,6 +15,24 @@ import datetime
 import json
 import requests
 import traceback
+import redis as redis_lib
+
+
+def _publish_task_event(event_type, data):
+    try:
+        r = redis_lib.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=settings.REDIS_DB,
+            decode_responses=True
+        )
+        r.publish('homeai:events', json.dumps({
+            'type': event_type,
+            'data': data,
+        }))
+        r.close()
+    except Exception:
+        pass
 
 
 def _redirect_back(request, fallback='home'):
@@ -114,56 +133,59 @@ def survey(request):
 
 
 def generate_initial_tasks(user):
-    today = timezone.now()
+    now = timezone.localtime().replace(second=0, microsecond=0)
+    remainder = now.minute % 5
+    delta = (5 - remainder) if remainder else 5
+    base = now + datetime.timedelta(minutes=delta)
 
     tasks = [
         {
             'title': 'Вынести мусор',
-            'due_date': today + datetime.timedelta(days=1)
+            'due_date': base + datetime.timedelta(days=1)
         },
         {
             'title': 'Протереть пыль',
-            'due_date': today + datetime.timedelta(days=2)
+            'due_date': base + datetime.timedelta(days=2)
         },
     ]
 
     if user.has_dishwasher:
         tasks.append({
             'title': 'Загрузить посудомойку и запустить',
-            'due_date': today + datetime.timedelta(days=1)
+            'due_date': base + datetime.timedelta(days=1)
         })
 
     if user.has_robot_vacuum:
         tasks.append({
             'title': 'Запустить робот-пылесос',
-            'due_date': today + datetime.timedelta(days=1)
+            'due_date': base + datetime.timedelta(days=1)
         })
 
     if user.has_plants:
         tasks.append({
             'title': 'Полить растения',
-            'due_date': today + datetime.timedelta(days=3)
+            'due_date': base + datetime.timedelta(days=3)
         })
 
     if user.has_pets:
         tasks.append({
             'title': 'Покормить питомца',
-            'due_date': today + datetime.timedelta(hours=12)
+            'due_date': base + datetime.timedelta(hours=12)
         })
         tasks.append({
             'title': 'Убрать за питомцем',
-            'due_date': today + datetime.timedelta(days=1)
+            'due_date': base + datetime.timedelta(days=1)
         })
 
     if user.cleaning_frequency == 'daily':
         tasks.append({
             'title': 'Влажная уборка',
-            'due_date': today + datetime.timedelta(days=1)
+            'due_date': base + datetime.timedelta(days=1)
         })
     elif user.cleaning_frequency == 'weekly':
         tasks.append({
             'title': 'Влажная уборка',
-            'due_date': today + datetime.timedelta(days=7)
+            'due_date': base + datetime.timedelta(days=7)
         })
 
     for task_data in tasks:
@@ -228,8 +250,16 @@ def complete_task(request, task_id):
 
     TaskHistory.objects.create(
         user=request.user,
-        task_title=task.title
+        task_title=task.title,
+        task_list=task.task_list,
     )
+
+    _publish_task_event('task.completed', {
+        'user_id': request.user.id,
+        'task_id': task.id,
+        'task_title': task.title,
+        'task_list': task.task_list,
+    })
 
     messages.success(request, f'Задача "{task.title}" выполнена!')
     return _redirect_back(request)
@@ -726,6 +756,7 @@ def api_tasks(request):
             'category_color': task.category.color if task.category else None,
             'edit_url': f'/task/{task.id}/edit/',
             'complete_url': f'/task/{task.id}/complete/',
+            'task_list': task.task_list,
             'delete_url': f'/task/{task.id}/delete/',
         })
 
@@ -969,66 +1000,17 @@ def category_delete(request, category_id):
     return redirect('categories')
 
 
-def analyze_recurring_patterns():
-    """
-    Celery-задача: анализ истории выполненных задач для поиска повторяющихся паттернов.
-    Вызывается раз в день (Celery Beat).
-    """
-    from django.contrib.auth import get_user_model
-    from django.db.models import Count, Min, Max
-    from datetime import timedelta
+@login_required
+def suggestions_page(request):
+    suggestions = RecurringSuggestion.objects.filter(user=request.user)
+    return render(request, 'core/suggestions.html', {
+        'suggestions': suggestions,
+    })
 
-    User = get_user_model()
-    users = User.objects.all()
 
-    for user in users:
-        # Берём историю за последние 90 дней
-        cutoff = timezone.now() - timedelta(days=90)
-        history = TaskHistory.objects.filter(
-            user=user,
-            completed_at__gte=cutoff
-        ).order_by('completed_at')
-
-        if history.count() < 3:
-            continue
-
-        # Группируем по названию задачи (нечёткое сравнение — упрощённо: точное совпадение)
-        task_groups = {}
-        for entry in history:
-            title = entry.task_title.lower().strip()
-            task_groups.setdefault(title, []).append(entry.completed_at)
-
-        for title, dates in task_groups.items():
-            if len(dates) < 3:
-                continue
-
-            # Вычисляем интервалы между выполнениями
-            intervals = [(dates[i+1] - dates[i]).days for i in range(len(dates)-1)]
-            if not intervals:
-                continue
-
-            avg_interval = sum(intervals) // len(intervals)
-            # Проверяем стабильность (отклонение не более 2 дней)
-            if all(abs(i - avg_interval) <= 2 for i in intervals) and avg_interval > 0:
-                # Проверяем, нет ли уже активного предложения для этой задачи
-                exists = RecurringSuggestion.objects.filter(
-                    user=user,
-                    title__iexact=title,
-                    status='pending'
-                ).exists()
-                if not exists:
-                    # Пытаемся найти категорию по названию
-                    category = Category.objects.filter(
-                        user=user,
-                        name__icontains=title.split()[0]
-                    ).first()
-
-                    RecurringSuggestion.objects.create(
-                        user=user,
-                        title=title.capitalize(),
-                        category=category,
-                        interval_days=avg_interval,
-                    )
+@login_required
+def tracker(request):
+    return render(request, 'core/tracker.html')
 
 
 @login_required
@@ -1063,13 +1045,24 @@ def suggestions_api(request):
             if action == 'accept':
                 suggestion.status = 'accepted'
                 suggestion.save()
-                # Создаём задачу на сегодня
+
+                # Определяем task_list из истории (мода — самое частое значение)
+                from django.db.models import Count
+                task_list_counts = TaskHistory.objects.filter(
+                    user=request.user,
+                    task_title__iexact=suggestion.title,
+                ).values('task_list').annotate(cnt=Count('id')).order_by('-cnt')
+                best_task_list = 'active'
+                if task_list_counts:
+                    best_task_list = task_list_counts[0]['task_list'] or 'active'
+
                 Task.objects.create(
                     user=request.user,
                     title=suggestion.title,
                     description=f'Автоматически добавлено из предложения (каждые {suggestion.interval_days} дн.)',
                     due_date=timezone.now(),
                     category=suggestion.category,
+                    task_list=best_task_list,
                 )
                 return JsonResponse({'ok': True, 'message': f'Задача «{suggestion.title}» добавлена!'})
 
@@ -1081,3 +1074,37 @@ def suggestions_api(request):
             return JsonResponse({'error': 'Неизвестное действие'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
+
+
+@csrf_exempt
+def api_create_suggestion(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    user_id = data.get('user_id')
+    title = (data.get('title') or '').strip()
+    interval_days = data.get('interval_days')
+
+    if not user_id or not title or not interval_days:
+        return JsonResponse({'error': 'user_id, title, interval_days required'}, status=400)
+
+    from .models import RecurringSuggestion
+    exists = RecurringSuggestion.objects.filter(
+        user_id=user_id,
+        title__iexact=title,
+        status='pending'
+    ).exists()
+    if exists:
+        return JsonResponse({'ok': False, 'error': 'already_exists'}, status=409)
+
+    RecurringSuggestion.objects.create(
+        user_id=user_id,
+        title=title,
+        interval_days=interval_days,
+    )
+    return JsonResponse({'ok': True, 'message': 'Предложение создано'})

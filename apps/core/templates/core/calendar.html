@@ -1104,21 +1104,14 @@
                 deleteBtn.addEventListener('click', function (event) {
                     event.preventDefault();
                     event.stopPropagation();
+                    const taskId = this.dataset.taskId;
                     showConfirmModal(
                         'Удаление задачи',
                         'Вы уверены, что хотите удалить задачу «' + escHtml(task.title) + '»? Это действие необратимо.',
                         function () {
-                            fetch('/task/' + task.id + '/delete/', {
-                                method: 'POST',
-                                headers: { 'X-CSRFToken': getCookie('csrftoken') }
-                            })
-                            .then(() => {
-                                closeTaskModal();
-                                allTasks = allTasks.filter(t => t.id !== task.id);
-                                render();
-                                showToast('Задача «' + escHtml(task.title) + '» удалена!', 'success');
-                            })
-                            .catch(() => showToast('Ошибка при удалении задачи.', 'danger'));
+                            closeTaskModal();
+                            showToast('Задача удаляется...', 'success');
+                            setTimeout(() => { window.location.href = '/task/' + taskId + '/delete/'; }, 100);
                         }
                     );
                 });
@@ -1162,18 +1155,6 @@
         toast.innerHTML = '<svg class="toast__icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/></svg><span class="toast__body">' + message + '</span><button type="button" class="toast__close" aria-label="Закрыть">\u00d7</button>';
         area.appendChild(toast);
         setTimeout(function () { if (toast.isConnected) { toast.classList.add('is-hiding'); toast.addEventListener('animationend', function () { toast.remove(); }, { once: true }); } }, 4200);
-    }
-
-    function showConfirmModal(title, text, onConfirm) {
-        const backdrop = document.createElement('div');
-        backdrop.className = 'modal-backdrop confirm-modal';
-        backdrop.setAttribute('aria-hidden', 'false');
-        backdrop.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);';
-        backdrop.innerHTML = '<div class="panel" style="max-width:420px;width:90vw;"><div class="panel__body"><h3 style="margin:0 0 8px;font-size:18px;">' + title + '</h3><p style="margin:0 0 20px;color:var(--text-secondary);font-size:14px;">' + text + '</p><div style="display:flex;gap:10px;justify-content:flex-end;"><button class="button button--secondary" id="confirm-cancel">Отмена</button><button class="button button--danger" id="confirm-ok">Удалить</button></div></div></div>';
-        document.body.appendChild(backdrop);
-        document.getElementById('confirm-cancel').addEventListener('click', function () { backdrop.remove(); });
-        document.getElementById('confirm-ok').addEventListener('click', function () { backdrop.remove(); onConfirm(); });
-        backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
     }
 
     taskModal.addEventListener('click', e => { if (e.target === taskModal) closeTaskModal(); });

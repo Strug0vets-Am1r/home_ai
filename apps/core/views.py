@@ -751,16 +751,13 @@ def task_delete(request, task_id):
     task = get_object_or_404(Task, id=task_id, user=request.user)
     title = task.title
 
-    if request.method == 'POST':
-        _publish_task_event('task.deleted', {
-            'user_id': request.user.id,
-            'task_id': task.id,
-            'task_title': title,
-        })
-        task.delete()
-        messages.success(request, f'Задача "{title}" удалена!')
-        return _redirect_back(request)
-
+    _publish_task_event('task.deleted', {
+        'user_id': request.user.id,
+        'task_id': task.id,
+        'task_title': title,
+    })
+    task.delete()
+    messages.success(request, f'Задача "{title}" удалена!')
     return _redirect_back(request)
 
 

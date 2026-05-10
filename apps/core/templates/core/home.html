@@ -374,20 +374,6 @@
 
 <div id="task-modals-container"></div>
 
-<!-- Confirmation Modal -->
-<div id="confirm-modal" class="modal-backdrop">
-    <div class="modal-dialog confirm-modal__dialog">
-        <div class="confirm-modal__content">
-            <h2 class="confirm-modal__title" id="confirm-modal-title">Подтверждение</h2>
-            <p class="confirm-modal__text" id="confirm-modal-text"></p>
-            <div class="confirm-modal__actions">
-                <button type="button" class="button button--primary" id="confirm-modal-cancel">Отмена</button>
-                <button type="button" class="button button--danger" id="confirm-modal-confirm">Удалить</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <style>
     .modal-backdrop {
         position: fixed;
@@ -578,41 +564,6 @@
         }
     }
 
-    /* Confirm Modal */
-    .confirm-modal__dialog {
-        background: var(--surface);
-        padding: 24px;
-        border-radius: var(--radius-lg);
-    }
-
-    .confirm-modal__content {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .confirm-modal__title {
-        margin: 0;
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: var(--text);
-    }
-
-    .confirm-modal__text {
-        margin: 0;
-        font-size: 0.95rem;
-        color: var(--text-secondary);
-        line-height: 1.6;
-    }
-
-    .confirm-modal__actions {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-    }
-
-    .confirm-modal__actions .button {
-        min-width: 100px;
     }
 </style>
 
@@ -1375,39 +1326,6 @@
                     this.textContent = oldText;
                 });
             });
-        });
-
-        const confirmModal = document.getElementById('confirm-modal');
-        const confirmModalTitle = document.getElementById('confirm-modal-title');
-        const confirmModalText = document.getElementById('confirm-modal-text');
-        const confirmModalCancel = document.getElementById('confirm-modal-cancel');
-        const confirmModalConfirm = document.getElementById('confirm-modal-confirm');
-        let confirmAction = null;
-
-        function showConfirmModal(title, text, onConfirm) {
-            confirmModalTitle.textContent = title;
-            confirmModalText.textContent = text;
-            confirmAction = onConfirm;
-            confirmModal.classList.add('is-open');
-        }
-
-        function closeConfirmModal() {
-            confirmModal.classList.remove('is-open');
-            confirmAction = null;
-        }
-
-        confirmModalCancel.addEventListener('click', closeConfirmModal);
-        confirmModalConfirm.addEventListener('click', function () {
-            if (confirmAction) {
-                confirmAction();
-            }
-            closeConfirmModal();
-        });
-
-        confirmModal.addEventListener('click', function (e) {
-            if (e.target === confirmModal) {
-                closeConfirmModal();
-            }
         });
 
         const clearCompletedBtn = document.getElementById('clear-completed-btn');

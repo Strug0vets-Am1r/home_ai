@@ -1105,15 +1105,9 @@
                     event.preventDefault();
                     event.stopPropagation();
                     const taskId = this.dataset.taskId;
-                    showConfirmModal(
-                        'Удаление задачи',
-                        'Вы уверены, что хотите удалить задачу «' + escHtml(task.title) + '»? Это действие необратимо.',
-                        function () {
-                            closeTaskModal();
-                            showToast('Задача удаляется...', 'success');
-                            setTimeout(() => { window.location.href = '/task/' + taskId + '/delete/'; }, 100);
-                        }
-                    );
+                    closeTaskModal();
+                    showToast('Задача удаляется...', 'success');
+                    setTimeout(() => { window.location.href = '/task/' + taskId + '/delete/'; }, 100);
                 });
             }
         }

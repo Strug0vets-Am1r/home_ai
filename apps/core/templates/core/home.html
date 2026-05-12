@@ -666,6 +666,34 @@
             sessionStorage.removeItem('openedTaskId');
         }
 
+        function onToggleSubtask(data, checkboxEl) {
+            if (data.status !== 'success') return;
+            var row = document.querySelector('[data-subtask-row][data-subtask-id="' + checkboxEl.dataset.subtaskId + '"]');
+            if (row) {
+                row.classList.toggle('is-completed', data.is_completed);
+                var badge = row.querySelector('[data-subtask-badge]');
+                if (badge) {
+                    badge.className = data.is_completed ? 'badge badge--success' : 'badge badge--muted';
+                    badge.textContent = data.is_completed ? 'Выполнено' : 'Не выполнено';
+                }
+                var text = row.querySelector('[data-subtask-text]');
+                if (text) {
+                    text.style.textDecoration = data.is_completed ? 'line-through' : 'none';
+                    text.style.opacity = data.is_completed ? '0.72' : '1';
+                }
+            }
+            var ptId = parseInt(checkboxEl.dataset.parentTaskId);
+            var taskItem = tasksData.tasks.find(function (t) { return t.id === ptId; });
+            if (!taskItem) taskItem = tasksData.completed_tasks.find(function (t) { return t.id === ptId; });
+            if (taskItem) taskItem.pending_subtask_count = data.pending_count;
+            var currentView = sessionStorage.getItem('selectedTaskView');
+            if (currentView && currentView !== 'tiles') showFilteredView(currentView);
+            fetch('/api/tasks-data/')
+                .then(function (r) { return r.json(); })
+                .then(function (d) { if (d.status === 'success') updateSidebarCounters(d.counters); })
+                .catch(function () {});
+        }
+
         function openTaskModalWithData(task) {
             const container = document.getElementById('task-modals-container');
             const modalId = `task-modal-${task.id}`;
@@ -763,34 +791,12 @@
                     });
 
                     checkbox.addEventListener('change', function () {
-                        const subtaskId = this.dataset.subtaskId;
-                        const isChecked = this.checked;
-
-                        fetch(`/subtask/${subtaskId}/toggle/`, {
+                        fetch(`/subtask/${this.dataset.subtaskId}/toggle/`, {
                             method: 'POST',
-                            headers: {
-                                'X-CSRFToken': getCookie('csrftoken')
-                            }
+                            headers: { 'X-CSRFToken': getCookie('csrftoken') }
                         })
                         .then(response => response.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                const row = document.querySelector(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
-                                if (row) {
-                                    row.classList.toggle('is-completed', data.is_completed);
-                                    const badge = row.querySelector('[data-subtask-badge]');
-                                    if (badge) {
-                                        badge.className = data.is_completed ? 'badge badge--success' : 'badge badge--muted';
-                                        badge.textContent = data.is_completed ? 'Выполнено' : 'Не выполнено';
-                                    }
-                                    const text = row.querySelector('[data-subtask-text]');
-                                    if (text) {
-                                        text.style.textDecoration = data.is_completed ? 'line-through' : 'none';
-                                        text.style.opacity = data.is_completed ? '0.72' : '1';
-                                    }
-                                }
-                            }
-                        });
+                        .then(data => onToggleSubtask(data, this));
                     });
                 });
 
@@ -888,32 +894,14 @@
                                     });
 
                                     checkbox.addEventListener('change', function () {
-                                        const subtaskId = this.dataset.subtaskId;
-                                        fetch(`/subtask/${subtaskId}/toggle/`, {
+                                        fetch(`/subtask/${this.dataset.subtaskId}/toggle/`, {
                                             method: 'POST',
                                             headers: {
                                                 'X-CSRFToken': getCookie('csrftoken')
                                             }
                                         })
                                         .then(response => response.json())
-                                        .then(data => {
-                                            if (data.status === 'success') {
-                                                const row = document.querySelector(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
-                                                if (row) {
-                                                    row.classList.toggle('is-completed', data.is_completed);
-                                                    const badge = row.querySelector('[data-subtask-badge]');
-                                                    if (badge) {
-                                                        badge.className = data.is_completed ? 'badge badge--success' : 'badge badge--muted';
-                                                        badge.textContent = data.is_completed ? 'Выполнено' : 'Не выполнено';
-                                                    }
-                                                    const text = row.querySelector('[data-subtask-text]');
-                                                    if (text) {
-                                                        text.style.textDecoration = data.is_completed ? 'line-through' : 'none';
-                                                        text.style.opacity = data.is_completed ? '0.72' : '1';
-                                                    }
-                                                }
-                                            }
-                                        });
+                                        .then(data => onToggleSubtask(data, this));
                                     });
                                 });
                             }
@@ -936,17 +924,38 @@
                     event.preventDefault();
                     event.stopPropagation();
 
-                    const taskId = this.dataset.taskId;
+                    const taskId = parseInt(this.dataset.taskId);
                     const wasCompleted = task.is_completed;
 
                     closeTaskModal(modal);
                     showToast('Задача ' + (wasCompleted ? 'восстанавливается' : 'завершается') + '...', 'success');
 
-                    // Redirect to complete/restore endpoint after a short delay
                     const endpoint = wasCompleted ? 'restore' : 'complete';
-                    setTimeout(() => {
-                        window.location.href = `/task/${taskId}/${endpoint}/`;
-                    }, 100);
+                    fetch(`/task/${taskId}/${endpoint}/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                    })
+                    .then(function () {
+                        // Update local data
+                        var allTasks = tasksData.tasks.concat(tasksData.completed_tasks);
+                        var t = allTasks.find(function (t) { return t.id === taskId; });
+                        if (t) {
+                            t.is_completed = !t.is_completed;
+                            tasksData.tasks = allTasks.filter(function (t) { return !t.is_completed; });
+                            tasksData.completed_tasks = allTasks.filter(function (t) { return t.is_completed; });
+                        }
+                        var currentView = sessionStorage.getItem('selectedTaskView');
+                        if (currentView && currentView !== 'tiles') {
+                            showFilteredView(currentView);
+                        }
+                        fetch('/api/tasks-data/')
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) { updateSidebarCounters(data.counters); })
+                            .catch(function () {});
+                    })
+                    .catch(function () {
+                        showToast('Ошибка при ' + (wasCompleted ? 'восстановлении' : 'завершении') + ' задачи.', 'danger');
+                    });
                 });
             }
 
@@ -970,7 +979,10 @@
                         if (currentView && currentView !== 'tiles') {
                             showFilteredView(currentView);
                         } else {
-                            location.reload();
+                            const tilesView = document.getElementById('task-tiles-view');
+                            const listView = document.getElementById('task-list-view');
+                            if (tilesView) tilesView.style.display = 'grid';
+                            if (listView) listView.style.display = 'none';
                         }
                         showToast(`Задача «${task.title}» удалена!`, 'success');
                         fetch('/api/tasks-data/')
@@ -1250,34 +1262,14 @@
             });
 
             checkbox.addEventListener('change', function () {
-                const subtaskId = this.dataset.subtaskId;
-                const isChecked = this.checked;
-
-                fetch(`/subtask/${subtaskId}/toggle/`, {
+                fetch(`/subtask/${this.dataset.subtaskId}/toggle/`, {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': getCookie('csrftoken')
                     }
                 })
                 .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        const row = document.querySelector(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
-                        if (row) {
-                            row.classList.toggle('is-completed', data.is_completed);
-                            const badge = row.querySelector('[data-subtask-badge]');
-                            if (badge) {
-                                badge.className = data.is_completed ? 'badge badge--success' : 'badge badge--muted';
-                                badge.textContent = data.is_completed ? 'Выполнено' : 'Не выполнено';
-                            }
-                            const text = row.querySelector('[data-subtask-text]');
-                            if (text) {
-                                text.style.textDecoration = data.is_completed ? 'line-through' : 'none';
-                                text.style.opacity = data.is_completed ? '0.72' : '1';
-                            }
-                        }
-                    }
-                });
+                .then(data => onToggleSubtask(data, this));
             });
         });
 

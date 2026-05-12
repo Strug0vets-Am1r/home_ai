@@ -1484,5 +1484,25 @@
                 .catch(function () {});
         }, 60000);
     })();
+
+    (function () {
+        function redirectHome() {
+            window.location.replace('/');
+        }
+
+        var isBack = false;
+        try {
+            var e = performance.getEntriesByType('navigation');
+            if (e.length && e[0].type === 'back_forward') isBack = true;
+        } catch (_) {}
+        if (!isBack && window.performance && window.performance.navigation) {
+            if (window.performance.navigation.type === 2) isBack = true;
+        }
+        if (isBack) { redirectHome(); return; }
+
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) redirectHome();
+        });
+    })();
 </script>
 {% endblock %}

@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
@@ -43,7 +44,10 @@ def _redirect_back(request, fallback='home'):
     return redirect(fallback)
 
 
+@never_cache
 def register(request):
+    if request.user.is_authenticated:
+        return redirect('home')
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
         first_name = request.POST.get('first_name', '').strip()
@@ -82,7 +86,10 @@ def register(request):
     return render(request, 'core/register.html')
 
 
+@never_cache
 def user_login(request):
+    if request.user.is_authenticated:
+        return redirect('home')
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
@@ -644,6 +651,7 @@ def _generate_subtasks_with_yandex(task_title, task_description='', user_gender=
 
 
 @login_required
+@never_cache
 def task_create(request):
     if request.method == 'POST':
         form = TaskForm(request.POST, user=request.user)
@@ -692,6 +700,7 @@ def task_create(request):
 
 
 @login_required
+@never_cache
 def task_edit(request, task_id):
     task = get_object_or_404(Task, id=task_id, user=request.user)
 

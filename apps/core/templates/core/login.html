@@ -44,4 +44,7 @@
         gap: 14px;
     }
 </style>
+<script>
+(function(){function r(){window.location.replace('/')}var b=!1;try{var e=performance.getEntriesByType('navigation');e.length&&e[0].type==='back_forward'&&(b=!0)}catch(_){}if(!b&&window.performance&&window.performance.navigation&&window.performance.navigation.type===2&&(b=!0),b){r();return}window.addEventListener('pageshow',function(e){e.persisted&&r()})})();
+</script>
 {% endblock %}

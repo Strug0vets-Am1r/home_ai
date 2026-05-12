@@ -73,25 +73,36 @@
 </div>
 
 <style>
-    .cal-page {
+    .app-container:has(.cal-page) {
+        overflow: hidden;
+        height: 100vh;
+    }
+
+    .content:has(.cal-page) {
         display: flex;
         flex-direction: column;
-        gap: 0;
-        height: calc(100vh - 140px);
-        min-height: 600px;
+        padding: 8px 31px 31px;
+        overflow: hidden;
+    }
+
+    .cal-page {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
     }
 
     /* ── Calendar Nav bar ── */
     .cal-nav {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 0 0 16px;
+        gap: 12px;
+        padding: 4px 0 10px;
     }
 
     .cal-nav__title {
         margin: 0;
-        font-size: 1.15rem;
+        font-size: 1.2rem;
         font-weight: 700;
         color: var(--text);
         min-width: 220px;
@@ -99,8 +110,8 @@
     }
 
     .cal-nav-btn {
-        width: 36px;
-        height: 36px;
+        width: 40px;
+        height: 40px;
         border: 1px solid var(--border);
         border-radius: 999px;
         background: var(--surface);
@@ -113,7 +124,7 @@
         flex-shrink: 0;
     }
 
-    .cal-nav-btn svg { width: 18px; height: 18px; }
+    .cal-nav-btn svg { width: 20px; height: 20px; }
 
     .cal-nav-btn:hover {
         background: var(--surface);
@@ -121,32 +132,26 @@
     }
 
     .cal-view-btn {
-        padding: 7px 14px;
+        padding: 9px 18px;
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         background: var(--surface);
         color: var(--text-secondary);
         font: inherit;
-        font-size: 0.88rem;
+        font-size: 0.92rem;
         font-weight: 600;
         cursor: pointer;
         transition: background var(--transition), color var(--transition), border-color var(--transition);
     }
 
-    .cal-view-btn.is-active {
-        background: var(--primary);
-        color: #fff;
-        border-color: var(--primary);
-    }
-
     .cal-today-btn {
-        padding: 7px 14px;
+        padding: 9px 18px;
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         background: var(--surface);
         color: var(--text);
         font: inherit;
-        font-size: 0.88rem;
+        font-size: 0.92rem;
         font-weight: 600;
         cursor: pointer;
         transition: background var(--transition), border-color var(--transition);
@@ -154,11 +159,17 @@
 
     .cal-today-btn:hover { background: var(--surface); }
 
+    .cal-view-btn.is-active {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+    }
+
     /* ── Body layout ── */
     .cal-body {
         flex: 1;
         display: flex;
-        gap: 16px;
+        gap: 10px;
         min-height: 0;
         overflow: hidden;
     }
@@ -184,7 +195,7 @@
 
     .cal-weekdays span {
         text-align: center;
-        padding: 10px 4px;
+        padding: 8px 4px;
         font-size: 0.78rem;
         font-weight: 700;
         letter-spacing: 0.04em;
@@ -202,15 +213,26 @@
         overflow-y: auto;
     }
 
+    .cal-grid.is-week-view {
+        overflow-y: auto;
+        scrollbar-gutter: stable;
+    }
+
+    .cal-weekdays.is-week-view {
+        overflow: hidden;
+        scrollbar-gutter: stable;
+    }
+
     .cal-grid--week {
         grid-template-columns: repeat(7, minmax(0, 1fr));
     }
+
 
     .cal-cell {
         border-right: 1.5px solid var(--border-color);
         border-bottom: 1.5px solid var(--border-color);
         padding: 6px;
-        min-height: 88px;
+        min-height: 82px;
         cursor: pointer;
         transition: background var(--transition);
         overflow: hidden;
@@ -218,7 +240,6 @@
         background: var(--surface);
     }
 
-    .cal-cell:nth-child(7n) { border-right: none; }
 
     .cal-cell:hover { background: color-mix(in srgb, var(--primary) 4%, var(--surface)); }
 
@@ -583,7 +604,9 @@
     :root { --gutter-w: 48px; }
 
     .cal-time-gutter {
-        display: block;
+        display: flex;
+        border-right: 1.5px solid var(--border-color);
+        background: var(--surface);
     }
 
     .cal-week-gutter {
@@ -594,16 +617,16 @@
         font-size: 0.72rem;
         font-weight: 600;
         color: var(--text-secondary);
-        border-right: 1px solid var(--border);
-        border-bottom: 1px solid var(--border);
+        border-right: 1.5px solid var(--border-color);
+        border-bottom: 1px solid color-mix(in srgb, var(--border-color) 30%, transparent);
         white-space: nowrap;
         min-height: 56px;
         background: var(--surface);
     }
 
     .cal-cell--week-row {
-        border-right: 1px solid var(--border);
-        border-bottom: 1px solid var(--border);
+        border-right: 1.5px solid var(--border-color);
+        border-bottom: 1px solid color-mix(in srgb, var(--border-color) 30%, transparent);
         padding: 4px 5px;
         min-height: 56px;
         cursor: pointer;
@@ -616,10 +639,51 @@
     .cal-cell--week-row.is-today { background: color-mix(in srgb, var(--primary) 6%, transparent); }
     .cal-cell--week-row.is-selected { background: color-mix(in srgb, var(--primary) 10%, transparent); }
 
+    .cal-weekday-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 6px 4px;
+        border-right: 1.5px solid var(--border-color);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        background: var(--surface);
+    }
+    .cal-weekday-cell:last-child { border-right: none; }
+    .cal-weekday-cell.is-weekend { color: color-mix(in srgb, var(--danger) 70%, var(--text-secondary)); }
+    .cal-weekday-cell__num {
+        font-size: 0.9rem;
+        font-weight: 800;
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+    }
+    .cal-weekday-cell.is-today .cal-weekday-cell__num {
+        background: var(--primary);
+        color: #fff;
+    }
+
     @media (max-width: 860px) {
+        .app-container:has(.cal-page) {
+            overflow: visible;
+            height: auto;
+        }
+        .content:has(.cal-page) {
+            display: block;
+            overflow: auto;
+        }
         .cal-sidebar { display: none; }
-        .cal-page { height: auto; }
+        .cal-page { flex: none; height: auto; }
         .cal-grid { overflow-y: visible; }
+        .cal-grid.is-week-view { overflow-y: visible; scrollbar-gutter: auto; }
+        .cal-weekdays.is-week-view { overflow: visible; scrollbar-gutter: auto; }
         .cal-cell { min-height: 64px; }
     }
 
@@ -700,6 +764,8 @@
     function render() {
         currentView === 'month' ? renderMonth() : renderWeek();
         updateWeekdayLabels();
+        grid.classList.toggle('is-week-view', currentView === 'week');
+        weekdaysEl.classList.toggle('is-week-view', currentView === 'week');
     }
 
     function updateWeekdayLabels() {
@@ -790,23 +856,22 @@
         const map = tasksByDate();
 
         // Заголовки дней (с временной колонкой-заглушкой)
+        const todayDate = new Date(); todayDate.setHours(0,0,0,0);
         weekdaysEl.innerHTML =
             `<span class="cal-time-gutter"></span>` +
             Array.from({length:7}, (_,i) => {
                 const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
                 const isWe = i >= 5;
-                return `<span class="${isWe ? 'cal-weekend' : ''}">${DAYS_SHORT[i]}</span>`;
+                const isToday = d.getTime() === todayDate.getTime();
+                return `<div class="cal-weekday-cell${isWe ? ' is-weekend' : ''}${isToday ? ' is-today' : ''}">
+                    <span>${DAYS_SHORT[i]}</span>
+                    <span class="cal-weekday-cell__num">${d.getDate()}</span>
+                </div>`;
             }).join('');
         weekdaysEl.style.gridTemplateColumns = 'var(--gutter-w) repeat(7, minmax(0,1fr))';
 
-        // Собираем все часы у которых есть задачи в эту неделю + округляем до часа
-        const hourSet = new Set();
-        for (let i = 0; i < 7; i++) {
-            const key = toKey(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
-            (map[key] || []).forEach(t => hourSet.add(Number(t.time.split(':')[0])));
-        }
-        // Если задач нет — показываем дефолтные часы 8..22
-        let hours = hourSet.size ? [...hourSet].sort((a,b) => a-b) : Array.from({length:15},(_,i)=>i+8);
+        // Показываем все часы от 00:00 до 23:00
+        var hours = Array.from({length:24}, function(_, i) { return i; });
 
         grid.innerHTML = '';
         grid.style.gridTemplateColumns = 'var(--gutter-w) repeat(7, minmax(0,1fr))';
@@ -874,6 +939,7 @@
         sorted.forEach(t => {
             const card = document.createElement('div');
             card.className = 'cal-task-card' + (t.is_completed ? ' cal-task-card--done' : '');
+            card.dataset.taskId = t.id;
 
             const listBorderColors = { active: 'var(--success)', planned: 'var(--primary)', urgent: '#d946ef', favorites: 'var(--warning)' };
             const listColor = listBorderColors[t.task_list] || 'var(--primary)';
@@ -988,30 +1054,30 @@
                 });
                 checkbox.addEventListener('change', function () {
                     const subtaskId = this.dataset.subtaskId;
-                    const isChecked = this.checked;
                     fetch(`/subtask/${subtaskId}/toggle/`, {
                         method: 'POST',
                         headers: { 'X-CSRFToken': getCookie('csrftoken') }
                     })
                     .then(r => r.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            const row = document.querySelector(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
-                            if (row) {
-                                row.classList.toggle('is-completed', data.is_completed);
-                                const badge = row.querySelector('[data-subtask-badge]');
-                                if (badge) {
-                                    badge.className = data.is_completed ? 'badge badge--success' : 'badge badge--muted';
-                                    badge.textContent = data.is_completed ? 'Выполнено' : 'Не выполнено';
-                                }
-                                const text = row.querySelector('[data-subtask-text]');
-                                if (text) {
-                                    text.style.textDecoration = data.is_completed ? 'line-through' : 'none';
-                                    text.style.opacity = data.is_completed ? '0.72' : '1';
-                                }
+                .then(data => {
+                    if (data.status === 'success') {
+                        const row = document.querySelector(`[data-subtask-row][data-subtask-id="${subtaskId}"]`);
+                        if (row) {
+                            row.classList.toggle('is-completed', data.is_completed);
+                            const badge = row.querySelector('[data-subtask-badge]');
+                            if (badge) {
+                                badge.className = data.is_completed ? 'badge badge--success' : 'badge badge--muted';
+                                badge.textContent = data.is_completed ? 'Выполнено' : 'Не выполнено';
+                            }
+                            const text = row.querySelector('[data-subtask-text]');
+                            if (text) {
+                                text.style.textDecoration = data.is_completed ? 'line-through' : 'none';
+                                text.style.opacity = data.is_completed ? '0.72' : '1';
                             }
                         }
-                    });
+                        refreshCalendar();
+                    }
+                });
                 });
             });
         }
@@ -1095,7 +1161,10 @@
                     closeTaskModal();
                     showToast('Задача ' + (wasCompleted ? 'восстанавливается' : 'завершается') + '...', 'success');
                     const endpoint = wasCompleted ? 'restore' : 'complete';
-                    setTimeout(() => { window.location.href = `/task/${taskId}/${endpoint}/`; }, 100);
+                    fetch(`/task/${taskId}/${endpoint}/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                    }).then(refreshCalendar).catch(function () {});
                 });
             }
 
@@ -1107,7 +1176,10 @@
                     const taskId = this.dataset.taskId;
                     closeTaskModal();
                     showToast('Задача удаляется...', 'success');
-                    setTimeout(() => { window.location.href = '/task/' + taskId + '/delete/'; }, 100);
+                    fetch(`/task/${taskId}/delete/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                    }).then(refreshCalendar).catch(function () {});
                 });
             }
         }
@@ -1179,7 +1251,11 @@
 
     document.getElementById('cal-today').addEventListener('click', () => {
         const now = new Date();
-        cursor = new Date(now.getFullYear(), now.getMonth(), 1);
+        if (currentView === 'week') {
+            cursor = now;
+        } else {
+            cursor = new Date(now.getFullYear(), now.getMonth(), 1);
+        }
         render();
         const key = toKey(now.getFullYear(), now.getMonth(), now.getDate());
         const map = tasksByDate();
@@ -1196,6 +1272,7 @@
 
     document.getElementById('btn-week').addEventListener('click', () => {
         currentView = 'week';
+        cursor = new Date();
         document.getElementById('btn-week').classList.add('is-active');
         document.getElementById('btn-month').classList.remove('is-active');
         render();
@@ -1235,18 +1312,49 @@
         });
     }
 
-    setInterval(function () {
+    function toTaskEvent(t) {
+        var d = new Date(t.due_date);
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        var h = String(d.getHours()).padStart(2, '0');
+        var min = String(d.getMinutes()).padStart(2, '0');
+        return {
+            id: t.id,
+            title: t.title,
+            description: t.description || '',
+            date: y + '-' + m + '-' + day,
+            time: h + ':' + min,
+            is_completed: t.is_completed,
+            pending_subtasks: t.pending_subtask_count,
+            category_name: t.category ? t.category.name : null,
+            category_color: t.category ? t.category.color : null,
+            edit_url: '/task/' + t.id + '/edit/',
+            task_list: t.task_list,
+        };
+    }
+
+    function refreshCalendar() {
         fetch('/api/tasks-data/')
-            .then(r => r.json())
-            .then(data => {
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
                 if (data.status === 'success') {
-                    allTasks = data.tasks.concat(data.completed_tasks);
+                    var mapped = data.tasks.map(toTaskEvent).concat(data.completed_tasks.map(toTaskEvent));
+                    allTasks = mapped;
                     render();
                     updateSidebarCounters(data.counters);
                 }
             })
-            .catch(() => {});
-    }, 60000);
+            .catch(function () {});
+    }
+
+    // Обновление каждые 3 секунды
+    setInterval(refreshCalendar, 3000);
+
+    // Мгновенное обновление при возвращении на вкладку
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) refreshCalendar();
+    });
 })();
 </script>
 {% endblock %}

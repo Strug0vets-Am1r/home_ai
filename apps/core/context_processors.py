@@ -1,7 +1,7 @@
 from django.utils import timezone
 from django.db.models import Q, Count
 from django.db.models import Prefetch
-from .models import Task
+from .models import Task, RecurringSuggestion
 
 
 def task_counters(request):
@@ -13,6 +13,7 @@ def task_counters(request):
             'completed_count': 0,
             'overdue_count': 0,
             'favorites_count': 0,
+            'suggestions_count': 0,
         }
 
     today = timezone.localtime().date()
@@ -54,6 +55,11 @@ def task_counters(request):
         is_favorite=True,
     ).count()
 
+    suggestions_count = RecurringSuggestion.objects.filter(
+        user=request.user,
+        status='pending',
+    ).count()
+
     return {
         'active_count': active_count,
         'urgent_count': urgent_count,
@@ -61,4 +67,5 @@ def task_counters(request):
         'completed_count': completed_count,
         'overdue_count': overdue_count,
         'favorites_count': favorites_count,
+        'suggestions_count': suggestions_count,
     }

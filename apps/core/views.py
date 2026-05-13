@@ -9,8 +9,8 @@ from django.http import JsonResponse
 from django.db.models import Count, Prefetch, Q
 from django.conf import settings
 
-from .models import User, Task, TaskHistory, Category, RecurringSuggestion
-from .forms import TaskForm, ProfileForm, CategoryForm
+from .models import User, Task, TaskHistory, RecurringSuggestion
+from .forms import TaskForm, ProfileForm
 
 import datetime
 import json
@@ -73,12 +73,6 @@ def register(request):
             last_name=last_name,
             gender=gender or None,
         )
-
-        Category.objects.bulk_create([
-            Category(user=user, name='Уборка', color='#10b981'),
-            Category(user=user, name='Покупки', color='#f59e0b'),
-            Category(user=user, name='Личное', color='#6366f1'),
-        ])
 
         login(request, user)
         return redirect('survey')
@@ -226,12 +220,9 @@ def home(request):
     planned_tasks = [t for t in all_tasks if not t.is_completed and t.task_list == 'planned']
     completed_tasks = [t for t in all_tasks if t.is_completed]
 
-    categories = Category.objects.filter(user=request.user)
-
     return render(request, 'core/home.html', {
         'tasks': active_tasks + urgent_tasks + planned_tasks,
         'completed_tasks': completed_tasks,
-        'categories': categories,
         'today': now,
     })
 
@@ -378,7 +369,7 @@ def api_tasks_data(request):
     all_tasks = Task.objects.filter(
         user=request.user,
         parent_task__isnull=True
-    ).select_related('category').annotate(
+    ).annotate(
         pending_subtask_count=Count('subtasks', filter=Q(subtasks__is_completed=False))
     ).prefetch_related(
         Prefetch(
@@ -402,11 +393,6 @@ def api_tasks_data(request):
             'is_favorite': task.is_favorite,
             'task_list': task.task_list,
             'pending_subtask_count': task.pending_subtask_count,
-            'category': {
-                'id': task.category.id,
-                'name': task.category.name,
-                'color': task.category.color
-            } if task.category else None,
             'subtasks': [
                 {
                     'id': st.id,
@@ -431,6 +417,7 @@ def api_tasks_data(request):
         'completed_count': Task.objects.filter(user=request.user, is_completed=True, parent_task__isnull=True).count(),
         'overdue_count': Task.objects.filter(user=request.user, is_completed=False, parent_task__isnull=True, due_date__date__lt=today).count(),
         'favorites_count': Task.objects.filter(user=request.user, is_completed=False, parent_task__isnull=True, is_favorite=True).count(),
+        'suggestions_count': RecurringSuggestion.objects.filter(user=request.user, status='pending').count(),
     }
 
     return JsonResponse({
@@ -775,7 +762,7 @@ def api_tasks(request):
     tasks = Task.objects.filter(
         user=request.user,
         parent_task__isnull=True,
-    ).select_related('category').annotate(
+    ).annotate(
         pending_subtask_count=Count('subtasks', filter=Q(subtasks__is_completed=False))
     )
 
@@ -790,12 +777,11 @@ def api_tasks(request):
             'time': local_due.strftime('%H:%M'),
             'is_completed': task.is_completed,
             'pending_subtasks': task.pending_subtask_count,
-            'category_name': task.category.name if task.category else None,
-            'category_color': task.category.color if task.category else None,
             'edit_url': f'/task/{task.id}/edit/',
             'complete_url': f'/task/{task.id}/complete/',
             'task_list': task.task_list,
             'delete_url': f'/task/{task.id}/delete/',
+            'is_favorite': task.is_favorite,
         })
 
     return JsonResponse(events, safe=False)
@@ -973,49 +959,14 @@ def profile(request):
 
 
 @login_required
-def categories(request):
-    if request.method == 'POST':
-        form = CategoryForm(request.POST)
-        if form.is_valid():
-            category = form.save(commit=False)
-            category.user = request.user
-            if Category.objects.filter(user=request.user, name=category.name).exists():
-                messages.error(request, f'Категория «{category.name}» уже существует.')
-            else:
-                category.save()
-                messages.success(request, f'Категория «{category.name}» создана.')
-                return redirect('categories')
-    else:
-        form = CategoryForm()
-
-    user_categories = Category.objects.filter(user=request.user)
-    return render(request, 'core/categories.html', {
-        'form': form,
-        'categories': user_categories,
-    })
-
-
-@login_required
-def category_delete(request, category_id):
-    if request.method == 'POST':
-        category = get_object_or_404(Category, id=category_id, user=request.user)
-        name = category.name
-        category.delete()
-        messages.success(request, f'Категория «{name}» удалена.')
-    return redirect('categories')
-
-
-@login_required
 def suggestions_page(request):
-    suggestions = RecurringSuggestion.objects.filter(user=request.user)
+    suggestions = RecurringSuggestion.objects.filter(user=request.user, status='pending')
     return render(request, 'core/suggestions.html', {
         'suggestions': suggestions,
     })
 
 
-@login_required
-def tracker(request):
-    return render(request, 'core/tracker.html')
+
 
 
 @login_required
@@ -1029,7 +980,7 @@ def suggestions_api(request):
         suggestions = RecurringSuggestion.objects.filter(
             user=request.user,
             status='pending'
-        ).values('id', 'title', 'interval_days', 'category__name')
+        ).values('id', 'title', 'interval_days')
         return JsonResponse({'suggestions': list(suggestions)})
 
     if request.method == 'POST':
@@ -1044,13 +995,7 @@ def suggestions_api(request):
                 user=request.user
             )
 
-            if suggestion.status != 'pending':
-                return JsonResponse({'error': 'Предложение уже обработано'}, status=400)
-
             if action == 'accept':
-                suggestion.status = 'accepted'
-                suggestion.save()
-
                 # Определяем task_list из истории (мода — самое частое значение)
                 from django.db.models import Count
                 task_list_counts = TaskHistory.objects.filter(
@@ -1066,14 +1011,15 @@ def suggestions_api(request):
                     title=suggestion.title,
                     description=f'Автоматически добавлено из предложения (каждые {suggestion.interval_days} дн.)',
                     due_date=timezone.now(),
-                    category=suggestion.category,
                     task_list=best_task_list,
                 )
-                return JsonResponse({'ok': True, 'message': f'Задача «{suggestion.title}» добавлена!'})
+
+                title = suggestion.title
+                suggestion.delete()
+                return JsonResponse({'ok': True, 'message': f'Задача «{title}» добавлена!'})
 
             elif action == 'reject':
-                suggestion.status = 'rejected'
-                suggestion.save()
+                suggestion.delete()
                 return JsonResponse({'ok': True, 'message': 'Предложение отклонено'})
 
             return JsonResponse({'error': 'Неизвестное действие'}, status=400)

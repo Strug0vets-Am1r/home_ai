@@ -34,19 +34,6 @@ class User(AbstractUser):
         return self.username
 
 
-class Category(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='categories')
-    name = models.CharField(max_length=100)
-    color = models.CharField(max_length=7, default='#6366f1')
-
-    class Meta:
-        ordering = ['name']
-        unique_together = ('user', 'name')
-
-    def __str__(self):
-        return self.name
-
-
 class Task(models.Model):
     LIST_CHOICES = [
         ('active', 'Актуальные'),
@@ -68,14 +55,6 @@ class Task(models.Model):
         max_length=20,
         choices=LIST_CHOICES,
         default='active'
-    )
-
-    category = models.ForeignKey(
-        'Category',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='tasks'
     )
 
     parent_task = models.ForeignKey(
@@ -126,7 +105,6 @@ class RecurringSuggestion(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='suggestions')
     title = models.CharField(max_length=255)
-    category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.SET_NULL)
     interval_days = models.IntegerField()
     suggested_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=SUGGESTION_CHOICES, default='pending')

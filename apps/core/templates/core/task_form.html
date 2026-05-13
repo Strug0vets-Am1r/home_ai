@@ -114,14 +114,6 @@
             </div>
 
             <div class="field">
-                <label class="field__label" for="{{ form.category.id_for_label }}">Категория</label>
-                <div class="profile-select-wrap">
-                    {{ form.category }}
-                </div>
-                {% if form.category.errors %}<div class="muted">{{ form.category.errors }}</div>{% endif %}
-            </div>
-
-            <div class="field">
                 <label class="field__label" for="{{ form.due_date.id_for_label }}">Дата и время выполнения</label>
 
                 <div class="datetime-field-wrap">

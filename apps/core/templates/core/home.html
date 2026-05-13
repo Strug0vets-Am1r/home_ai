@@ -161,16 +161,6 @@
         opacity: 0.7;
     }
 
-    .task-item__category {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
     .task-item__time {
         color: var(--text-secondary);
         font-size: 0.92rem;
@@ -286,7 +276,6 @@
         "is_completed": false,
         "is_favorite": {{ task.is_favorite|lower }},
         "task_list": "{{ task.task_list }}",
-        "category": {% if task.category %}{"name": "{{ task.category.name }}", "color": "{{ task.category.color }}"}{% else %}null{% endif %},
         "pending_subtask_count": {{ task.pending_subtask_count }},
         "subtasks": [
           {% for subtask in task.subtasks.all %}
@@ -309,7 +298,6 @@
         "due_date": "{{ task.due_date|date:'c' }}",
         "due_date_display": "{{ task.due_date|date:'d.m.Y H:i' }}",
         "is_completed": true,
-        "category": {% if task.category %}{"name": "{{ task.category.name }}", "color": "{{ task.category.color }}"}{% else %}null{% endif %},
         "pending_subtask_count": 0,
         "subtasks": [
           {% for subtask in task.subtasks.all %}
@@ -412,7 +400,7 @@
     }
 
     .task-modal__body {
-        overflow-y: auto;
+        overflow-y: hidden;
         max-height: calc(100vh - 40px);
     }
 
@@ -564,7 +552,6 @@
         }
     }
 
-    }
 </style>
 
 
@@ -587,6 +574,7 @@
     function updateSidebarCounters(counters) {
         if (!counters) return;
         const map = {
+            'suggestions_count': 'suggestions_count',
             'active_count': 'active_count',
             'planned_count': 'planned_count',
             'favorites_count': 'favorites_count',
@@ -700,16 +688,20 @@
             let modal = document.getElementById(modalId);
 
             if (!modal) {
+                const listLabels = { active: 'Активная задача', planned: 'В планах', urgent: 'Срочная задача', favorites: 'Избранная задача' };
+                const listColors = { active: 'var(--success)', planned: 'var(--primary)', urgent: '#d946ef', favorites: 'var(--warning)' };
                 const taskTypeLabel = task.is_completed
                     ? 'Выполненная задача'
-                    : task.task_list === 'urgent'
-                    ? 'Срочная задача'
-                    : task.task_list === 'planned'
-                    ? 'Запланированная задача'
-                    : 'Актуальная задача';
+                    : (listLabels[task.task_list] || 'Активная задача');
+                const labelColor = task.is_completed
+                    ? 'var(--text-secondary)'
+                    : (listColors[task.task_list] || 'var(--primary)');
+                const favoriteFlag = task.is_favorite
+                    ? `<svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="var(--warning)" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>`
+                    : '';
 
                 const descriptionContent = task.description
-                    ? `<p class="task-modal__description" style="margin: 0;">${task.description}</p>`
+                    ? `<div style="max-height:200px;overflow-y:auto;"><p class="task-modal__description" style="margin:0;">${escHtml(task.description)}</p></div>`
                     : '';
 
                 const subtasksContent = task.subtasks && task.subtasks.length > 0
@@ -728,6 +720,8 @@
                       </div>`
                     : '<p class="muted" style="margin: 0;">У этой задачи пока нет подзадач.</p>';
 
+                const subtasksScrolled = `<div style="max-height:200px;overflow-y:auto;">${subtasksContent}</div>`;
+
                 const completeButton = task.is_completed
                     ? `<button type="button" class="button button--success button--small js-complete-task-modal" data-task-id="${task.id}">Восстановить</button>`
                     : `<button type="button" class="button button--success button--small js-complete-task-modal" data-task-id="${task.id}">Завершить задачу</button>`;
@@ -738,8 +732,11 @@
                             <div class="panel__body task-modal__body">
                                 <div class="task-modal__header">
                                     <div class="task-modal__header-main">
-                                        <div class="badge badge--muted" style="width: fit-content;">
-                                            ${taskTypeLabel}
+                                        <div style="display:flex;align-items:center;gap:6px;width:fit-content;">
+                                            <span class="badge" style="background:color-mix(in srgb, ${labelColor} 14%, transparent);color:${labelColor};border:1px solid color-mix(in srgb, ${labelColor} 24%, transparent);">
+                                                ${taskTypeLabel}
+                                            </span>
+                                            ${favoriteFlag}
                                         </div>
                                         <h3 id="task-modal-title-${task.id}" class="task-modal__title">
                                             ${task.title}
@@ -757,7 +754,7 @@
                                     </div>
                                     <div class="task-modal__block">
                                         <div class="task-modal__label">Подзадачи</div>
-                                        ${subtasksContent}
+                                        ${subtasksScrolled}
                                     </div>
                                     <div class="task-modal__actions">
                                         ${completeButton}
@@ -885,7 +882,7 @@
                                       </div>`
                                     : '<p class="muted" style="margin: 0;">У этой задачи пока нет подзадач.</p>';
 
-                                subtasksBlock.innerHTML = `<div class="task-modal__label">Подзадачи</div>${subtasksContent}`;
+                                subtasksBlock.innerHTML = `<div class="task-modal__label">Подзадачи</div><div style="max-height:200px;overflow-y:auto;">${subtasksContent}</div>`;
 
                                 // Re-attach checkbox listeners for new subtasks
                                 subtasksBlock.querySelectorAll('.subtask-checkbox').forEach(function (checkbox) {
@@ -965,35 +962,39 @@
                 deleteBtn.addEventListener('click', function (event) {
                     event.preventDefault();
                     event.stopPropagation();
-                    const taskId = task.id;
-                    const taskTitle = task.title;
-                    fetch(`/task/${task.id}/delete/`, {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': getCookie('csrftoken') }
-                    })
-                    .then(() => {
-                        closeTaskModal(modal);
-                        tasksData.tasks = tasksData.tasks.filter(t => t.id !== task.id);
-                        tasksData.completed_tasks = tasksData.completed_tasks.filter(t => t.id !== task.id);
-                        const currentView = sessionStorage.getItem('selectedTaskView');
-                        if (currentView && currentView !== 'tiles') {
-                            showFilteredView(currentView);
-                        } else {
-                            const tilesView = document.getElementById('task-tiles-view');
-                            const listView = document.getElementById('task-list-view');
-                            if (tilesView) tilesView.style.display = 'grid';
-                            if (listView) listView.style.display = 'none';
+                    showConfirmModal(
+                        'Удаление задачи',
+                        `Вы уверены, что хотите удалить задачу «${task.title}»? Это действие необратимо.`,
+                        function () {
+                            fetch(`/task/${task.id}/delete/`, {
+                                method: 'POST',
+                                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                            })
+                            .then(() => {
+                                closeTaskModal(modal);
+                                tasksData.tasks = tasksData.tasks.filter(t => t.id !== task.id);
+                                tasksData.completed_tasks = tasksData.completed_tasks.filter(t => t.id !== task.id);
+                                const currentView = sessionStorage.getItem('selectedTaskView');
+                                if (currentView && currentView !== 'tiles') {
+                                    showFilteredView(currentView);
+                                } else {
+                                    const tilesView = document.getElementById('task-tiles-view');
+                                    const listView = document.getElementById('task-list-view');
+                                    if (tilesView) tilesView.style.display = 'grid';
+                                    if (listView) listView.style.display = 'none';
+                                }
+                                showToast(`Задача «${task.title}» удалена!`, 'success');
+                                fetch('/api/tasks-data/')
+                                    .then(function (r) { return r.json(); })
+                                    .then(function (data) { updateSidebarCounters(data.counters); })
+                                    .catch(function () {});
+                            })
+                            .catch(err => {
+                                console.error('Error deleting task:', err);
+                                showToast('Ошибка при удалении задачи.', 'danger');
+                            });
                         }
-                        showToast(`Задача «${task.title}» удалена!`, 'success');
-                        fetch('/api/tasks-data/')
-                            .then(function (r) { return r.json(); })
-                            .then(function (data) { updateSidebarCounters(data.counters); })
-                            .catch(function () {});
-                    })
-                    .catch(err => {
-                        console.error('Error deleting task:', err);
-                        showToast('Ошибка при удалении задачи.', 'danger');
-                    });
+                    );
                 });
             }
 
@@ -1054,13 +1055,6 @@
         }
 
         function renderTaskItem(task) {
-            const categoryHtml = task.category
-                ? `<span class="task-item__category" style="background-color: ${task.category.color}1a; color: ${task.category.color};">
-                     <span style="width: 6px; height: 6px; border-radius: 999px; background-color: ${task.category.color}; display: inline-block;"></span>
-                     ${task.category.name}
-                   </span>`
-                : '';
-
             const isOverdue = !task.is_completed && getTaskDayOnly(task.due_date) < today;
             const badgeHtml = isOverdue
                 ? `<span class="badge" style="background: color-mix(in srgb, var(--danger) 14%, var(--surface)); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));">Просрочено</span>`
@@ -1077,7 +1071,6 @@
                     <div class="task-item__top">
                         <div class="task-item__title-wrap">
                             <h3 class="task-item__title">${task.is_completed ? '<s>' : ''}${task.title}${task.is_completed ? '</s>' : ''}</h3>
-                            ${categoryHtml}
                         </div>
                         <div style="display: flex; align-items: center; gap: 12px;">
                             ${favoriteFlag}
@@ -1140,7 +1133,7 @@
                     <div class="empty-state">
                         <svg class="empty-state__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 15.803a7.5 7.5 0 0 0 10.607 0Z"/></svg>
                         <h3 class="empty-state__title">Нет задач</h3>
-                        <p class="empty-state__text">В этой категории пока нет задач</p>
+                        <p class="empty-state__text">В этом списке пока нет задач</p>
                     </div>
                 `;
             } else {
@@ -1357,7 +1350,9 @@
                             console.error('Error clearing completed tasks:', err);
                             showToast('Ошибка при очистке списка.', 'danger');
                         });
-                    }
+                    },
+                    'Очистить',
+                    'danger'
                 );
             });
         }

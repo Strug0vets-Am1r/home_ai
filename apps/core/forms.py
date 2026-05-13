@@ -3,13 +3,13 @@ import zoneinfo
 
 from django import forms
 from django.utils import timezone
-from .models import Task, User, Category
+from .models import Task, User
 
 
 class TaskForm(forms.ModelForm):
     class Meta:
         model = Task
-        fields = ['title', 'description', 'due_date', 'category', 'is_favorite', 'task_list']
+        fields = ['title', 'description', 'due_date', 'is_favorite', 'task_list']
         widgets = {
             'title': forms.TextInput(attrs={'placeholder': 'Например: Приготовить пасту с креветками'}),
             'due_date': forms.DateTimeInput(
@@ -22,7 +22,6 @@ class TaskForm(forms.ModelForm):
                     'placeholder': 'При желании добавь детали: ингредиенты, комнату, условия, приоритеты и т.д.'
                 }
             ),
-            'category': forms.Select(attrs={'class': 'select'}),
             'is_favorite': forms.CheckboxInput(),
             'task_list': forms.HiddenInput(),
         }
@@ -30,19 +29,12 @@ class TaskForm(forms.ModelForm):
             'title': 'Название задачи',
             'description': 'Описание',
             'due_date': 'Дата и время выполнения',
-            'category': 'Категория',
             'is_favorite': 'Добавить в избранное',
             'task_list': 'Список',
         }
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        if user is not None:
-            self.fields['category'].queryset = Category.objects.filter(user=user)
-        else:
-            self.fields['category'].queryset = Category.objects.none()
-        self.fields['category'].required = False
-        self.fields['category'].empty_label = 'Без категории'
 
         self.fields['browser_timezone'] = forms.CharField(
             required=False, widget=forms.HiddenInput()
@@ -133,18 +125,4 @@ class ProfileForm(forms.ModelForm):
             'has_robot_vacuum': 'Робот-пылесос',
             'has_plants': 'Есть растения',
             'has_pets': 'Есть питомцы',
-        }
-
-
-class CategoryForm(forms.ModelForm):
-    class Meta:
-        model = Category
-        fields = ['name', 'color']
-        widgets = {
-            'name': forms.TextInput(attrs={'class': 'input', 'placeholder': 'Название категории'}),
-            'color': forms.TextInput(attrs={'type': 'color', 'class': 'category-color-input'}),
-        }
-        labels = {
-            'name': 'Название',
-            'color': 'Цвет',
         }

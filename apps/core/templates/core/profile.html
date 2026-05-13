@@ -162,6 +162,9 @@
     </div>
 </div>
 <style>
+    .content {
+        overflow: hidden !important;
+    }
     .profile-container {
         max-width: 1060px;
         margin: 0 auto;
@@ -442,24 +445,15 @@
 
     function updateSidebarCounters(counters) {
         if (!counters) return;
-        Object.keys(counters).forEach(function (key) {
-            var els = document.querySelectorAll('[data-counter="' + key + '"]');
-            els.forEach(function (el) { el.textContent = counters[key] ?? el.textContent; });
-        });
-    }
-    setInterval(function () {
-        fetch('/api/tasks-data/')
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (data.status === 'success') updateSidebarCounters(data.counters);
-            })
-            .catch(function () {});
-    }, 60000);
-
-    window.enterEditMode = function() {
-        document.getElementById('view-mode').style.display = 'none';
-        document.getElementById('edit-mode').style.display = 'block';
-    };
+        const map = {
+            'suggestions_count': 'suggestions_count',
+            'active_count': 'active_count',
+            'planned_count': 'planned_count',
+            'favorites_count': 'favorites_count',
+            'urgent_count': 'urgent_count',
+            'overdue_count': 'overdue_count',
+            'completed_count': 'completed_count',
+        };
 
     window.exitEditMode = function() {
         document.getElementById('edit-mode').style.display = 'none';

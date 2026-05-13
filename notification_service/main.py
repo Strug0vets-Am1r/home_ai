@@ -310,6 +310,28 @@ def _process_task_reminder_event(event_data: dict):
         logger.error(f"Ошибка при обработке события task.reminder: {e}")
 
 
+def _process_suggestion_created_event(event_data: dict):
+    try:
+        user_id = event_data.get("user_id")
+        title = event_data.get("title", "Задача")
+        interval_days = event_data.get("interval_days", 0)
+        notification = {
+            "user_id": user_id,
+            "type": "suggestion.created",
+            "title": "Новое предложение!",
+            "message": f"AI предлагает повторять задачу \"{title.capitalize()}\" каждые {interval_days} дн.",
+            "data": event_data,
+            "read": False,
+            "created_at": datetime.utcnow().isoformat() + 'Z',
+        }
+        _save_notification(notification)
+        if main_loop:
+            asyncio.run_coroutine_threadsafe(_broadcast_notification(notification), main_loop)
+        logger.info(f"Уведомление о новом предложении для пользователя {user_id}")
+    except Exception as e:
+        logger.error(f"Ошибка при обработке события suggestion.created: {e}")
+
+
 def _save_notification(notification: dict):
     if not redis_client:
         return
@@ -357,6 +379,8 @@ def _listen_events():
                         _process_tasks_cleared_event(event_data)
                     elif event_type == "task.reminder":
                         _process_task_reminder_event(event_data)
+                    elif event_type == "suggestion.created":
+                        _process_suggestion_created_event(event_data)
                     else:
                         logger.debug(f"Неизвестный тип: {event_type}")
                 except json.JSONDecodeError as e:

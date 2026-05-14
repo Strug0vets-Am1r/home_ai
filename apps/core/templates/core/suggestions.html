@@ -101,9 +101,9 @@
     }
 
     .suggestion-card__badge--pending {
-        background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+        background: color-mix(in srgb, var(--primary) 20%, var(--surface));
         color: var(--primary);
-        border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
+        border-color: var(--primary);
     }
 
     .suggestion-card__actions {
@@ -118,9 +118,9 @@
         height: 40px;
         border: 1.5px solid;
         border-radius: 8px;
-        background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+        background: color-mix(in srgb, var(--danger) 20%, var(--surface));
         color: var(--danger);
-        border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
+        border-color: var(--danger);
         font-size: 1.4rem;
         cursor: pointer;
         transition: all var(--transition);
@@ -261,13 +261,13 @@
             } else {
                 btn.disabled = false;
                 btn.textContent = oldText;
-                showToast(data.error || 'Ошибка', 'danger');
+                showToast('Ошибка при обработке предложения', 'danger');
             }
         })
         .catch(() => {
             btn.disabled = false;
             btn.textContent = oldText;
-            showToast('Ошибка соединения', 'danger');
+            showToast('Ошибка соединения с сервером', 'danger');
         });
     }
 

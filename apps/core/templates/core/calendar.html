@@ -160,8 +160,8 @@
     .cal-today-btn:hover { background: var(--surface); }
 
     .cal-view-btn.is-active {
-        background: var(--primary);
-        color: #fff;
+        background: color-mix(in srgb, var(--primary) 20%, var(--surface));
+        color: var(--primary);
         border-color: var(--primary);
     }
 
@@ -241,9 +241,9 @@
 
     .cal-cell:hover { background: color-mix(in srgb, var(--primary) 4%, var(--surface)); }
 
-    .cal-cell.is-today { background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
+    .cal-cell.is-today { background: color-mix(in srgb, var(--primary) 20%, var(--surface)); }
 
-    .cal-cell.is-selected { background: color-mix(in srgb, var(--primary) 10%, var(--surface)); }
+    .cal-cell.is-selected { background: color-mix(in srgb, var(--primary) 20%, var(--surface)); }
 
     .cal-cell.is-other-month { background: var(--bg); }
     .cal-cell.is-other-month .cal-cell__num { opacity: 0.32; }
@@ -307,7 +307,7 @@
     }
     .cal-cell--week:nth-child(7n) { border-right: none; }
     .cal-cell--week:hover { background: color-mix(in srgb, var(--primary) 4%, var(--surface)); }
-    .cal-cell--week.is-today { background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
+    .cal-cell--week.is-today { background: color-mix(in srgb, var(--primary) 20%, var(--surface)); }
 
     /* ── Sidebar ── */
     .cal-sidebar {
@@ -618,8 +618,8 @@
 
     .cal-cell--week-row:nth-child(8n) { border-right: none; }
     .cal-cell--week-row:hover { background: color-mix(in srgb, var(--primary) 4%, transparent); }
-    .cal-cell--week-row.is-today { background: color-mix(in srgb, var(--primary) 6%, transparent); }
-    .cal-cell--week-row.is-selected { background: color-mix(in srgb, var(--primary) 10%, transparent); }
+    .cal-cell--week-row.is-today { background: color-mix(in srgb, var(--primary) 20%, transparent); }
+    .cal-cell--week-row.is-selected { background: color-mix(in srgb, var(--primary) 20%, transparent); }
 
     .cal-weekday-cell {
         display: flex;
@@ -720,22 +720,29 @@
         return map;
     }
 
-    function chipColor(task) {
-        if (task.is_completed) return 'color-mix(in srgb, #9aa7bc 14%, var(--surface))';
-        const listColors = { active: 'var(--success)', planned: 'var(--primary)', urgent: '#d946ef', favorites: 'var(--warning)' };
-        const c = listColors[task.task_list] || 'var(--primary)';
-        return `color-mix(in srgb, ${c} 14%, var(--surface))`;
-    }
-    function chipBorderColor(task) {
-        if (task.is_completed) return 'color-mix(in srgb, #9aa7bc 24%, var(--border-color))';
-        const listColors = { active: 'var(--success)', planned: 'var(--primary)', urgent: '#d946ef', favorites: 'var(--warning)' };
-        const c = listColors[task.task_list] || 'var(--primary)';
-        return `color-mix(in srgb, ${c} 24%, var(--border-color))`;
-    }
 
-    function pad(n) { return String(n).padStart(2,'0'); }
 
-    // ── Render ──
+     function pad(n) { return String(n).padStart(2,'0'); }
+
+     // ── Helpers for chip colors ──
+      function chipColor(task) {
+          if (task.is_overdue) {
+              return `color-mix(in srgb, var(--danger) 20%, var(--surface))`;
+          }
+          const listColors = { active: 'var(--success)', planned: 'var(--primary)', urgent: '#d946ef', favorites: 'var(--warning)' };
+          const c = listColors[task.task_list] || 'var(--primary)';
+          return `color-mix(in srgb, ${c} 20%, var(--surface))`;
+      }
+       function chipBorderColor(task) {
+           if (task.is_overdue) {
+               return 'var(--danger)';
+           }
+           const listColors = { active: 'var(--success)', planned: 'var(--primary)', urgent: '#d946ef', favorites: 'var(--warning)' };
+           const c = listColors[task.task_list] || 'var(--primary)';
+           return c;
+       }
+
+     // ── Render ──
     function render() {
         currentView === 'month' ? renderMonth() : renderWeek();
         updateWeekdayLabels();
@@ -950,9 +957,14 @@
             card.className = 'cal-task-card' + (t.is_completed ? ' cal-task-card--done' : '');
             card.dataset.taskId = t.id;
 
-            const listBorderColors = { active: 'var(--success)', planned: 'var(--primary)', urgent: '#d946ef', favorites: 'var(--warning)' };
-            const listColor = listBorderColors[t.task_list] || 'var(--primary)';
-            card.style.borderLeftColor = listColor;
+             let listColor;
+             if (t.is_overdue) {
+                 listColor = 'var(--danger)';
+             } else {
+                 const listBorderColors = { active: 'var(--success)', planned: 'var(--primary)', urgent: '#d946ef', favorites: 'var(--warning)' };
+                 listColor = listBorderColors[t.task_list] || 'var(--primary)';
+             }
+             card.style.borderLeftColor = listColor;
 
             const subtaskBadge = !t.is_completed && t.pending_subtasks > 0
                 ? `<span class="badge badge--muted" style="font-size:0.72rem;padding:1px 6px;">Подзадач: ${t.pending_subtasks}</span>`
@@ -1160,7 +1172,7 @@
                         }
                     })
                     .catch(error => {
-                        showToast(error.message || 'Произошла ошибка.', 'danger');
+                        showToast('Ошибка при генерации подзадач.', 'danger');
                     })
                     .finally(() => {
                         this.disabled = false;
@@ -1339,26 +1351,29 @@
         });
     }
 
-    function toTaskEvent(t) {
-        var d = new Date(t.due_date);
-        var y = d.getFullYear();
-        var m = String(d.getMonth() + 1).padStart(2, '0');
-        var day = String(d.getDate()).padStart(2, '0');
-        var h = String(d.getHours()).padStart(2, '0');
-        var min = String(d.getMinutes()).padStart(2, '0');
-        return {
-            id: t.id,
-            title: t.title,
-            description: t.description || '',
-            date: y + '-' + m + '-' + day,
-            time: h + ':' + min,
-            is_completed: t.is_completed,
-            pending_subtasks: t.pending_subtask_count,
-            edit_url: '/task/' + t.id + '/edit/',
-            task_list: t.task_list,
-            is_favorite: t.is_favorite,
-        };
-    }
+     function toTaskEvent(t) {
+         var d = new Date(t.due_date);
+         var y = d.getFullYear();
+         var m = String(d.getMonth() + 1).padStart(2,'0');
+         var day = String(d.getDate()).padStart(2,'0');
+         var h = String(d.getHours()).padStart(2,'0');
+         var min = String(d.getMinutes()).padStart(2,'0');
+         var now = new Date();
+         var isOverdue = !t.is_completed && d < now;
+         return {
+             id: t.id,
+             title: t.title,
+             description: t.description || '',
+             date: y + '-' + m + '-' + day,
+             time: h + ':' + min,
+             is_completed: t.is_completed,
+             pending_subtasks: t.pending_subtask_count,
+             edit_url: '/task/' + t.id + '/edit/',
+             task_list: t.task_list,
+             is_favorite: t.is_favorite,
+             is_overdue: isOverdue
+         };
+     }
 
     function refreshCalendar() {
         fetch('/api/tasks-data/')

@@ -29,62 +29,61 @@
         margin-bottom: 32px;
     }
 
-    .task-tile {
-        position: relative;
-        overflow: hidden;
-        border-radius: 18px;
-        padding: 28px 24px;
-        min-height: 140px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: space-between;
-        cursor: pointer;
-        border: 2px solid;
-        background: var(--tile-bg);
-        color: var(--tile-color);
+.task-tile {
+    position: relative;
+    overflow: hidden;
+    border-radius: 18px;
+    padding: 28px 24px;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    cursor: pointer;
+    border: 2px solid;
+    background: var(--tile-bg);
+    color: var(--tile-color);
 
-        transition: all 200ms cubic-bezier(.2,.8,.2,1);
-        text-decoration: none;
-        font-family: inherit;
-        --tile-color: var(--success);
-        --tile-bg: color-mix(in srgb, var(--success) 14%, var(--surface));
-        border-color: color-mix(in srgb, var(--success) 24%, var(--border-color));
-    }
+    transition: all 200ms cubic-bezier(.2,.8,.2,1);
+    text-decoration: none;
+    font-family: inherit;
+    --tile-color: var(--success);
+    --tile-bg: color-mix(in srgb, var(--success) 20%, var(--surface));
+    border-color: var(--tile-color);
+}
 
     .task-tile:hover {
         transform: translateY(-2px);
-
     }
 
-    .task-tile--planned {
-        --tile-color: var(--primary);
-        --tile-bg: color-mix(in srgb, var(--primary) 14%, var(--surface));
-        border-color: color-mix(in srgb, var(--primary) 24%, var(--border-color));
-    }
+.task-tile--planned {
+    --tile-color: var(--primary);
+    --tile-bg: color-mix(in srgb, var(--primary) 20%, var(--surface));
+    border-color: var(--tile-color);
+}
 
-    .task-tile--favorites {
-        --tile-color: var(--warning);
-        --tile-bg: color-mix(in srgb, var(--warning) 14%, var(--surface));
-        border-color: color-mix(in srgb, var(--warning) 24%, var(--border-color));
-    }
+.task-tile--favorites {
+    --tile-color: var(--warning);
+    --tile-bg: color-mix(in srgb, var(--warning) 20%, var(--surface));
+    border-color: var(--tile-color);
+}
 
-    .task-tile--urgent {
-        --tile-color: #d946ef;
-        --tile-bg: color-mix(in srgb, #d946ef 14%, var(--surface));
-        border-color: color-mix(in srgb, #d946ef 24%, var(--border-color));
-    }
+.task-tile--urgent {
+    --tile-color: #d946ef;
+    --tile-bg: color-mix(in srgb, #d946ef 20%, var(--surface));
+    border-color: var(--tile-color);
+}
 
-    .task-tile--completed {
-        --tile-color: #9ca3af;
-        --tile-bg: color-mix(in srgb, #9ca3af 14%, var(--surface));
-        border-color: color-mix(in srgb, #9ca3af 24%, var(--border-color));
-    }
+.task-tile--completed {
+    --tile-color: #9ca3af;
+    --tile-bg: color-mix(in srgb, #9ca3af 20%, var(--surface));
+    border-color: var(--tile-color);
+}
 
     .task-tile--overdue {
         --tile-color: var(--danger);
-        --tile-bg: color-mix(in srgb, var(--danger) 14%, var(--surface));
-        border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
+        --tile-bg: color-mix(in srgb, var(--danger) 20%, var(--surface));
+        border-color: var(--danger);
     }
 
     .task-tile__icon {
@@ -243,9 +242,9 @@
         height: 40px;
         border: 1.5px solid;
         border-radius: 8px;
-        background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+        background: color-mix(in srgb, var(--danger) 20%, var(--surface));
         color: var(--danger);
-        border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
+        border-color: var(--danger);
         font-size: 1.4rem;
         cursor: pointer;
         transition: all var(--transition);
@@ -733,7 +732,7 @@
                                 <div class="task-modal__header">
                                     <div class="task-modal__header-main">
                                         <div style="display:flex;align-items:center;gap:6px;width:fit-content;">
-                                            <span class="badge" style="background:color-mix(in srgb, ${labelColor} 14%, transparent);color:${labelColor};border:1px solid color-mix(in srgb, ${labelColor} 24%, transparent);">
+                                            <span class="badge" style="background:color-mix(in srgb, ${labelColor} 20%, transparent);color:${labelColor};border:1px solid ${labelColor};">
                                                 ${taskTypeLabel}
                                             </span>
                                             ${favoriteFlag}
@@ -849,7 +848,7 @@
                                     const task = tasksData.tasks[taskIndex];
                                     const isOverdue = !task.is_completed && getTaskDayOnly(task.due_date) < today;
                                     const badgeHtml = isOverdue
-                                        ? `<span class="badge" style="background: color-mix(in srgb, var(--danger) 14%, var(--surface)); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));">Просрочено</span>`
+                                        ? `<span class="badge" style="background: color-mix(in srgb, var(--danger) 20%, var(--surface)); color: var(--danger); border-color: var(--danger);">Просрочено</span>`
                                         : pendingCount > 0
                                         ? `<span class="badge badge--muted">Подзадач: ${pendingCount}</span>`
                                         : `<span class="badge badge--success">Готово к выполнению</span>`;
@@ -904,7 +903,7 @@
                             }
                         })
                         .catch((error) => {
-                            showToast(error.message || 'Произошла ошибка.', 'danger');
+                            showToast('Ошибка при генерации подзадач.', 'danger');
                         })
                         .finally(() => {
                             this.disabled = false;
@@ -951,7 +950,7 @@
                             .catch(function () {});
                     })
                     .catch(function () {
-                        showToast('Ошибка при ' + (wasCompleted ? 'восстановлении' : 'завершении') + ' задачи.', 'danger');
+                        showToast('Ошибка при обновлении задачи.', 'danger');
                     });
                 });
             }
@@ -1057,7 +1056,7 @@
         function renderTaskItem(task) {
             const isOverdue = !task.is_completed && getTaskDayOnly(task.due_date) < today;
             const badgeHtml = isOverdue
-                ? `<span class="badge" style="background: color-mix(in srgb, var(--danger) 14%, var(--surface)); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));">Просрочено</span>`
+                ? `<span class="badge" style="background: color-mix(in srgb, var(--danger) 20%, var(--surface)); color: var(--danger); border-color: var(--danger);">Просрочено</span>`
                 : task.pending_subtask_count > 0
                 ? `<span class="badge badge--muted">Подзадач: ${task.pending_subtask_count}</span>`
                 : `<span class="badge badge--success">Готово к выполнению</span>`;
@@ -1294,11 +1293,11 @@
                     if (data.status === 'success') {
                         showToast('Подзадачи успешно сгенерированы!', 'success');
                     } else {
-                        showToast(data.message || 'Ошибка генерации подзадач.', 'danger');
+                                    showToast('Ошибка', 'danger');
                     }
                 })
                 .catch(() => {
-                    showToast('Произошла ошибка.', 'danger');
+                                showToast('Ошибка', 'danger');
                 })
                 .finally(() => {
                     this.disabled = false;

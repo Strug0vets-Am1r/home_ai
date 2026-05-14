@@ -5,20 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home AI - {% block title %}Помощник по дому{% endblock %}</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet"
-    >
-    <link
-        href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css"
-        rel="stylesheet"
-    >
+    <style>
+        :root {
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+        }
+    </style>
 
     <style>
         :root {
-            --font-body: 'Inter', system-ui, sans-serif;
+            --font-body: system-ui, sans-serif;
 
             --bg: #f4f6f9;
             --surface: #ffffff;
@@ -31,7 +26,7 @@
 
             --primary: #0066ff;
             --success: #00cc66;
-            --warning: #ff9900;
+            --warning: #ffdd00;
             --suggestions: #f691c5;
             --danger: #ff3333;
 
@@ -57,7 +52,7 @@
 
             --primary: #0066ff;
             --success: #00cc66;
-            --warning: #ff9900;
+            --warning: #ffdd00;
             --suggestions: #f691c5;
             --danger: #ff3333;
 
@@ -1256,6 +1251,8 @@
 
             let notifications = [];
             let ws = null;
+            let notifServiceAvailable = true;
+            const NOTIF_TIMEOUT = 3000; // 3s
 
             // Notification service URL (port 8003 locally, proxied via nginx in prod)
             const notifBase = 'http://' + window.location.hostname + ':8003';
@@ -1339,38 +1336,84 @@
             }
 
             function fetchNotifications() {
-                return fetch(notifBase + '/api/notifications/user/' + userId + '?limit=50')
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        if (data.notifications) {
-                            notifications = data.notifications.map(function (n) {
-                                var key = n.user_id + ':' + n.created_at;
-                                n.id = key;
-                                return n;
-                            });
-                            renderNotifications();
-                        }
-                    })
-                    .catch(function () {});
+                if (!notifServiceAvailable) return Promise.reject('service unavailable');
+                return Promise.race([
+                    fetch(notifBase + '/api/notifications/user/' + userId + '?limit=50'),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), NOTIF_TIMEOUT))
+                ])
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.notifications) {
+                        notifications = data.notifications.map(function (n) {
+                            var key = n.user_id + ':' + n.created_at;
+                            n.id = key;
+                            return n;
+                        });
+                        renderNotifications();
+                    }
+                })
+                .catch(function (err) {
+                    console.warn('Notification service unavailable:', err);
+                    notifServiceAvailable = false;
+                    if (notifBadge) notifBadge.classList.add('is-hidden');
+                    if (notifBtn) notifBtn.style.display = 'none';
+                });
+            }
+
+            function timedFetch(url, opts) {
+                if (!notifServiceAvailable) return Promise.reject('service unavailable');
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), NOTIF_TIMEOUT);
+                return fetch(url, { ...opts, signal: controller.signal })
+                    .finally(() => clearTimeout(timeout));
             }
 
             function connectWebSocket() {
-                ws = new WebSocket(wsBase + '/ws/notifications/' + userId);
+                if (!notifServiceAvailable) return;
+                let wsTimeout = setTimeout(function () {
+                    if (ws) { try { ws.close(); } catch (_) {} }
+                    notifServiceAvailable = false;
+                    if (notifBtn) notifBtn.style.display = 'none';
+                }, NOTIF_TIMEOUT);
 
-                ws.onmessage = function (event) {
-                    try {
-                        var msg = JSON.parse(event.data);
-                        if (msg.type === 'notification' && msg.notification) {
-                            addNotification(msg.notification);
+                try {
+                    ws = new WebSocket(wsBase + '/ws/notifications/' + userId);
+
+                    ws.onopen = function () {
+                        clearTimeout(wsTimeout);
+                        console.log('WebSocket connected');
+                    };
+
+                    ws.onerror = function (err) {
+                        clearTimeout(wsTimeout);
+                        console.warn('WebSocket error:', err);
+                        notifServiceAvailable = false;
+                        if (notifBtn) notifBtn.style.display = 'none';
+                        try { ws.close(); } catch (_) {}
+                    };
+
+                    ws.onclose = function () {
+                        clearTimeout(wsTimeout);
+                        ws = null;
+                        if (notifServiceAvailable) {
+                            setTimeout(connectWebSocket, 3000);
                         }
-                    } catch (e) {}
-                };
+                    };
 
-                ws.onclose = function () {
-                    setTimeout(connectWebSocket, 3000);
-                };
-
-                ws.onerror = function () {};
+                    ws.onmessage = function (event) {
+                        try {
+                            var msg = JSON.parse(event.data);
+                            if (msg.type === 'notification' && msg.notification) {
+                                addNotification(msg.notification);
+                            }
+                        } catch (e) {}
+                    };
+                } catch (err) {
+                    clearTimeout(wsTimeout);
+                    console.warn('WebSocket construction failed:', err);
+                    notifServiceAvailable = false;
+                    if (notifBtn) notifBtn.style.display = 'none';
+                }
             }
 
             function positionDropdown() {
@@ -1396,12 +1439,20 @@
                         notifDropdown.classList.add('is-open');
                         notifications.forEach(function (n) { n.read = true; });
                         updateBadge();
-                        fetch(notifBase + '/api/notifications/user/' + userId + '/read-all', { method: 'POST' }).catch(function () {});
+                        timedFetch(notifBase + '/api/notifications/user/' + userId + '/read-all', { method: 'POST' }).catch(function () {});
                     }
                 });
             }
 
-            fetchNotifications().then(setupBellHandler).catch(setupBellHandler);
+            fetchNotifications().then(function () {
+                setupBellHandler();
+                if (notifServiceAvailable) {
+                    connectWebSocket();
+                }
+            }).catch(function () {
+                setupBellHandler();
+                // WebSocket не подключаем — сервис недоступен
+            });
 
             document.addEventListener('click', function (e) {
                 if (!notifDropdown.contains(e.target) && e.target !== notifBtn && !notifBtn.contains(e.target)) {
@@ -1424,7 +1475,7 @@
                 notifClearAll.addEventListener('click', function () {
                     notifications = [];
                     renderNotifications();
-                    fetch(notifBase + '/api/notifications/user/' + userId, { method: 'DELETE' }).catch(function () {});
+                    timedFetch(notifBase + '/api/notifications/user/' + userId, { method: 'DELETE' }).catch(function () {});
                 });
             }
 

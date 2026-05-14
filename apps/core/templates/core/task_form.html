@@ -241,16 +241,14 @@
         transition: all var(--transition);
         font-family: inherit;
         min-height: 110px;
-
-        position: relative;
         background: transparent;
-        --tile-color: #34d399;
-        border-color: #34d399;
+        --tile-color: var(--success);
+        border-color: var(--success);
     }
 
     .task-list-tile[data-list="active"] {
-        --tile-color: #34d399;
-        border-color: #34d399;
+        --tile-color: var(--success);
+        border-color: var(--success);
     }
 
     .task-list-tile[data-list="urgent"] {
@@ -259,8 +257,8 @@
     }
 
     .task-list-tile[data-list="planned"] {
-        --tile-color: #60a5fa;
-        border-color: #60a5fa;
+        --tile-color: var(--primary);
+        border-color: var(--primary);
     }
 
     .task-list-tile__icon {
@@ -278,22 +276,21 @@
 
     .task-list-tile.is-selected {
         transform: translateY(-2px);
-
     }
 
     .task-list-tile[data-list="active"].is-selected {
-        background: color-mix(in srgb, #34d399 14%, var(--surface));
-        border-color: color-mix(in srgb, #34d399 24%, var(--border-color));
+        background: color-mix(in srgb, var(--success) 20%, var(--surface));
+        border-color: var(--success);
     }
 
     .task-list-tile[data-list="urgent"].is-selected {
-        background: color-mix(in srgb, #d946ef 14%, var(--surface));
-        border-color: color-mix(in srgb, #d946ef 24%, var(--border-color));
+        background: color-mix(in srgb, #d946ef 20%, var(--surface));
+        border-color: #d946ef;
     }
 
     .task-list-tile[data-list="planned"].is-selected {
-        background: color-mix(in srgb, #60a5fa 14%, var(--surface));
-        border-color: color-mix(in srgb, #60a5fa 24%, var(--border-color));
+        background: color-mix(in srgb, var(--primary) 20%, var(--surface));
+        border-color: var(--primary);
     }
 
     .task-list-tile.is-selected .task-list-tile__icon {
@@ -476,10 +473,10 @@
         align-items: center;
         gap: 8px;
         padding: 10px 16px;
-        border: 2px solid #fbbf24;
+        border: 2px solid var(--warning);
         border-radius: 8px;
         background: transparent;
-        color: #fbbf24;
+        color: var(--warning);
         font-size: 0.9rem;
         font-weight: 500;
         cursor: pointer;
@@ -492,8 +489,8 @@
     }
 
     .topbar__favorite-btn.is-favorite {
-        background: color-mix(in srgb, #fbbf24 14%, var(--surface));
-        border-color: color-mix(in srgb, #fbbf24 24%, var(--border-color));
+        background: color-mix(in srgb, var(--warning) 20%, var(--surface));
+        border-color: var(--warning);
         transform: translateY(-2px);
 
     }
@@ -503,9 +500,9 @@
         height: 40px;
         border: 1.5px solid;
         border-radius: 8px;
-        background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+        background: color-mix(in srgb, var(--danger) 20%, var(--surface));
         color: var(--danger);
-        border-color: color-mix(in srgb, var(--danger) 24%, var(--border-color));
+        border-color: var(--danger);
         font-size: 1.4rem;
         cursor: pointer;
         transition: all var(--transition);
@@ -696,14 +693,14 @@
 
     .mini-calendar__day.is-today {
         border-color: var(--primary);
-        background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+        background: color-mix(in srgb, var(--primary) 20%, var(--surface));
         color: var(--primary);
     }
 
     .mini-calendar__day.is-selected {
-        background: color-mix(in srgb, var(--success) 14%, var(--surface)) !important;
+        background: color-mix(in srgb, var(--success) 20%, var(--surface)) !important;
         color: var(--success) !important;
-        border-color: color-mix(in srgb, var(--success) 24%, var(--border-color)) !important;
+        border-color: var(--success) !important;
         font-weight: 700;
     }
 
@@ -1023,7 +1020,7 @@
                 showAlert('Подзадачи успешно сгенерированы.', 'success');
             })
             .catch(function (error) {
-                showAlert(error.message || 'Произошла ошибка при генерации подзадач.', 'danger');
+                showAlert('Ошибка при генерации подзадач.', 'danger');
             })
             .finally(function () {
                 generateBtn.disabled = false;
